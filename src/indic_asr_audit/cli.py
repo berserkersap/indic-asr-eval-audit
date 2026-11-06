@@ -101,7 +101,7 @@ def _synthesize(args: argparse.Namespace) -> None:
     summary = log.groupby(["has_number", "split", "status", "reason"]).size().rename("sentences")
     out = Path("results") / "synth" / f"{base}-summary.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
-    summary.reset_index().to_csv(out, index=False)
+    summary.reset_index().to_csv(out, index=False, lineterminator="\n")
     print(summary.to_string())
 
 

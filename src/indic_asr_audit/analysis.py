@@ -241,7 +241,8 @@ def _convention_gap(
 
 
 def write_tables(tables: dict[str, pd.DataFrame], out_dir: Path) -> None:
-    """Write each table as CSV, rounded for readable diffs."""
+    """Write each non-empty table as CSV, rounded for readable diffs."""
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, table in tables.items():
-        table.round(4).to_csv(out_dir / f"{name}.csv", index=False)
+        if not table.empty:
+            table.round(4).to_csv(out_dir / f"{name}.csv", index=False, lineterminator="\n")

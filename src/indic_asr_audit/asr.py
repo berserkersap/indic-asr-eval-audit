@@ -372,7 +372,7 @@ def run_transcription(
         "started": previous.get("started", datetime.now(UTC).isoformat(timespec="seconds")),
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8", newline="\n")
     with out_path.open("a", encoding="utf-8", newline="\n") as f:
         for start in range(0, len(todo), batch_size):
             batch = todo[start : start + batch_size]
@@ -384,4 +384,4 @@ def run_transcription(
     meta["transcribed"] = previous.get("transcribed", 0) + len(todo)
     if (capped := getattr(transcriber, "capped", None)) is not None:
         meta["capped_outputs"] = previous.get("capped_outputs", 0) + capped
-    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8", newline="\n")

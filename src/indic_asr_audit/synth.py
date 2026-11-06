@@ -373,7 +373,9 @@ def synthesize_manifest(
     settings_path = out_dir / "settings.json"
     if not settings_path.exists():
         created = datetime.now(UTC).isoformat(timespec="seconds")
-        settings_path.write_text(json.dumps({**settings, "created": created}, indent=2))
+        settings_path.write_text(
+            json.dumps({**settings, "created": created}, indent=2) + "\n", newline="\n"
+        )
     log_path = out_dir / "synthesis_log.jsonl"
     log = _read_log(log_path)
     graph = build_graph(engine, pack, out_dir, conditions, limits)
