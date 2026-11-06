@@ -78,9 +78,11 @@ select = [
 ]
 ignore = [
     "D100", "D104", "D105", "D107",  # module/package/magic/__init__ docstrings are optional
-    "D203", "D213",                  # use D211/D212 style
     "RUF001", "RUF002", "RUF003",    # Devanagari text is intentional
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
