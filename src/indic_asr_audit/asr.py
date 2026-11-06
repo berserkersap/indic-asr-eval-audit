@@ -81,10 +81,11 @@ class WhisperTranscriber:
 
     Whisper sometimes repeats a phrase until it reaches its token limit, and
     in a batch that one utterance makes every other wait. The limit is
-    therefore set from the audio length, at ``max_tokens_per_second``. On the
-    FLEURS Hindi references the real rate is at most 19 tokens per second, so
-    the default of 25 only stops runaway repetition. Outputs that reach the
-    limit are counted in ``capped`` and recorded with the transcripts.
+    therefore set from the length of the longest clip in the batch, at
+    ``max_tokens_per_second``. On the FLEURS Hindi references the real rate
+    is at most 19 tokens per second, so the default of 25 only stops runaway
+    repetition. Outputs whose length reaches the limit are counted in
+    ``capped`` and recorded with the transcripts.
     """
 
     def __init__(
@@ -113,6 +114,7 @@ class WhisperTranscriber:
         import torch
 
         seconds = max(len(audio) for audio in batch) / SAMPLE_RATE
+        limit = token_limit(seconds, self.max_tokens_per_second)
         features = self.processor(list(batch), sampling_rate=SAMPLE_RATE, return_tensors="pt")
         inputs = features.input_features.to(self.device, self.model.dtype)
         with torch.inference_mode():
@@ -122,11 +124,14 @@ class WhisperTranscriber:
                 task="transcribe",
                 do_sample=False,
                 num_beams=1,
-                max_new_tokens=token_limit(seconds, self.max_tokens_per_second),
+                max_new_tokens=limit,
             )
-        self.capped += int((ids != self.model.generation_config.eos_token_id).all(dim=1).sum())
-        texts = self.processor.batch_decode(ids, skip_special_tokens=True)
-        return [text.strip() for text in texts]
+        texts = [t.strip() for t in self.processor.batch_decode(ids, skip_special_tokens=True)]
+        lengths = [
+            len(self.processor.tokenizer(t, add_special_tokens=False).input_ids) for t in texts
+        ]
+        self.capped += sum(n >= limit - 5 for n in lengths)  # a few prompt tokens share the budget
+        return texts
 
     def describe(self) -> dict[str, Any]:
         """Return the settings that determine the output."""
@@ -381,7 +386,7 @@ def run_transcription(
                 f.write(json.dumps({"id": utt.id, "hypothesis": text}, ensure_ascii=False) + "\n")
             f.flush()
     meta["finished"] = datetime.now(UTC).isoformat(timespec="seconds")
-    meta["transcribed"] = previous.get("transcribed", 0) + len(todo)
+    meta["transcribed"] = len(read_transcripts(out_path))
     if (capped := getattr(transcriber, "capped", None)) is not None:
         meta["capped_outputs"] = previous.get("capped_outputs", 0) + capped
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8", newline="\n")

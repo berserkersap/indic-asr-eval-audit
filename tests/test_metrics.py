@@ -41,3 +41,18 @@ def test_char_counts_ignore_spaces() -> None:
 )
 def test_numeric_counts(reference: str, hypothesis: str, expected: Counts) -> None:
     assert numeric_counts(reference, hypothesis, HINDI) == expected
+
+
+@pytest.mark.parametrize(
+    ("reference", "hypothesis", "strict", "lenient"),
+    [
+        ("लगभग 15 मील", "लगबग पंद्रा मिल", 1, 0),
+        ("1963 में", "1093 में", 1, 1),
+        ("करीब 70 किलोमीटर", "करीब 7त्तर किलोमीटर", 1, 1),
+    ],
+)
+def test_lenient_numeric_error_forgives_misspelled_words_only(
+    reference: str, hypothesis: str, strict: int, lenient: int
+) -> None:
+    assert numeric_counts(reference, hypothesis, HINDI).errors == strict
+    assert numeric_counts(reference, hypothesis, HINDI, lenient=True).errors == lenient

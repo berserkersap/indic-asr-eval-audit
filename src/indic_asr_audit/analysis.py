@@ -88,11 +88,11 @@ def rq1_tables(
             training split of a model trained on it.
 
     Returns:
-        Tables named "scores", "level_steps", "ranks", "convention" and
-        "wer_vs_numeric".
+        Tables named "scores", "level_steps", "ranks", "convention",
+        "wer_vs_numeric" and "diagnostics".
     """
     levels = list(Level)
-    scores, steps, ranks, disagreement = [], [], [], []
+    scores, steps, ranks, disagreement, diagnostics = [], [], [], [], []
     scored: dict[tuple[str, str], dict[Level, Scored]] = {}
 
     for subset, keep in SUBSETS.items():
@@ -114,10 +114,22 @@ def rq1_tables(
             for level, s in by_level.items():
                 subset_scores.append(_row(system, subset, level, "wer", s.words, clusters))
                 subset_scores.append(_row(system, subset, level, "cer", s.chars, clusters))
-            numbers = [numeric_counts(u.text, transcripts[system][u.id], pack) for u in subset_utts]
+            hyps = transcripts[system]
+            numbers = [numeric_counts(u.text, hyps[u.id], pack) for u in subset_utts]
             if any(c.total for c in numbers):
+                lenient = [
+                    numeric_counts(u.text, hyps[u.id], pack, lenient=True) for u in subset_utts
+                ]
                 subset_scores.append(_row(system, subset, "-", "numeric_error", numbers, clusters))
+                subset_scores.append(
+                    _row(system, subset, "-", "numeric_error_lenient", lenient, clusters)
+                )
                 numeric_by_system[system] = numbers
+            words = by_level[Level.NUMBERS].words
+            hyp_lengths = [
+                len(normalize(hyps[u.id], pack, Level.NUMBERS).split()) for u in subset_utts
+            ]
+            diagnostics.append(_diagnostics(system, subset, words, numbers, hyp_lengths, clusters))
             for before, after in itertools.pairwise(levels):
                 diff = paired_difference(by_level[after].words, by_level[before].words, clusters)
                 steps.append(
@@ -149,6 +161,42 @@ def rq1_tables(
         "ranks": pd.DataFrame(ranks),
         "convention": convention,
         "wer_vs_numeric": pd.DataFrame(disagreement),
+        "diagnostics": pd.DataFrame(diagnostics),
+    }
+
+
+def _diagnostics(
+    system: str,
+    subset: str,
+    words: list[Counts],
+    numbers: list[Counts],
+    hyp_lengths: list[int],
+    clusters: list[str],
+) -> dict[str, object]:
+    """Two checks on what drives a system's WER, at the numbers level.
+
+    Long outputs: hypotheses more than twice as long as the reference, which
+    for Whisper are repetition loops; WER is also given without them. Number
+    share: numbers as a share of reference words, and the most WER points
+    that missed numbers could account for (each missed number costs at most
+    one word error).
+    """
+    long = [h > 2 * c.total for h, c in zip(hyp_lengths, words, strict=True)]
+    kept = [c for c, is_long in zip(words, long, strict=True) if not is_long]
+    ref_words = sum(c.total for c in words)
+    return {
+        "system": system,
+        "subset": subset,
+        "utterances": len(words),
+        "sentences": len(set(clusters)),
+        "long_outputs": sum(long),
+        "wer": corpus_rate(words),
+        "wer_without_long": corpus_rate(kept),
+        "reference_words": ref_words,
+        "reference_numbers": sum(c.total for c in numbers),
+        "missed_numbers": sum(c.errors for c in numbers),
+        "word_errors": sum(c.errors for c in words),
+        "max_wer_from_numbers": sum(c.errors for c in numbers) / ref_words if ref_words else 0.0,
     }
 
 
@@ -241,8 +289,11 @@ def _convention_gap(
 
 
 def write_tables(tables: dict[str, pd.DataFrame], out_dir: Path) -> None:
-    """Write each non-empty table as CSV, rounded for readable diffs."""
+    """Write each table as CSV, rounded for readable diffs; an empty table removes its file."""
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, table in tables.items():
-        if not table.empty:
-            table.round(4).to_csv(out_dir / f"{name}.csv", index=False, lineterminator="\n")
+        path = out_dir / f"{name}.csv"
+        if table.empty:
+            path.unlink(missing_ok=True)
+        else:
+            table.round(4).to_csv(path, index=False, lineterminator="\n")
