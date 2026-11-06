@@ -1,0 +1,10 @@
+has_number,split,status,reason,sentences
+False,test,rejected,latin,2
+False,test,saved,,150
+True,dev,saved,,14
+True,test,rejected,duration,1
+True,test,rejected,latin,6
+True,test,saved,,35
+True,train,rejected,duration,3
+True,train,rejected,latin,29
+True,train,saved,,248

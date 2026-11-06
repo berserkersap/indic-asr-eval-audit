@@ -1,0 +1,27 @@
+{
+  "config": {
+    "backend": "whisper",
+    "model": "openai/whisper-small",
+    "revision": "973afd24965f72e36ca33b3055d56a652f456b4d",
+    "language": "hi",
+    "decoding": {
+      "do_sample": false,
+      "num_beams": 1
+    },
+    "max_tokens_per_second": 25.0,
+    "device": "cuda",
+    "dtype": "torch.float16"
+  },
+  "versions": {
+    "torch": "2.11.0+cu128",
+    "transformers": "5.22.1",
+    "sarvamai": "0.1.43",
+    "soundfile": "0.14.0",
+    "scipy": "1.18.1"
+  },
+  "batch_size": 16,
+  "started": "2026-11-06T22:19:45+00:00",
+  "finished": "2026-11-06T22:27:07+00:00",
+  "transcribed": 447,
+  "capped_outputs": 11
+}
