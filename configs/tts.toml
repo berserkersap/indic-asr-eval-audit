@@ -1,15 +1,19 @@
-# TTS engines for synthetic test sets. "engine" picks the backend; other keys go to it.
+# TTS engines for synthetic test sets. "engine" picks the backend; other keys go to it,
+# except related_systems: ASR systems from the same family, reported separately in RQ2.
 
-# Open weights, CC BY-NC 4.0. One speaker; seeds vary the prosody.
+# Open weights, CC BY-NC 4.0. One speaker; seeds vary the prosody. Runs on CPU.
 [mms-tts]
 engine = "mms"
 model = "facebook/mms-tts-hin"
 revision = "1d83b223ec78e30b944f7d96bd117eb3d7023303"
 seeds = [0, 1, 2]
+related_systems = ["mms-1b-all"]
 
-# Sarvam's hosted model. Needs SARVAM_API_KEY; costs credits.
+# Sarvam's hosted model. Needs SARVAM_API_KEY and costs credits. Voices are
+# from the sarvamai SDK's speaker list; check them against the model version.
 [bulbul]
 engine = "bulbul"
 model = "bulbul:v3"
 language = "hi-IN"
 voices = ["priya", "ritu", "neha", "kavya", "rahul", "rohan", "amit", "aditya"]
+related_systems = ["saaras-v4-transcribe", "saaras-v4-verbatim"]
