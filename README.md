@@ -9,69 +9,97 @@ normalisation. This repo asks two questions about that practice, on real
 Hindi speech, with confidence intervals:
 
 - **RQ1.** How much of a reported WER comes from the scoring convention rather
-  than from recognition, and does the convention change which system looks
-  best? In particular, does WER rank systems the same way as the error that
-  matters for voice payments and forms: getting the numbers right?
+  than from recognition, and does WER rank systems the same way as the error
+  that matters for voice payments and forms: getting the numbers right?
 - **RQ2.** Does a TTS-generated test set of the same sentences rank systems the
   way real speech does?
 
-The work is updated as new experiments land; see the [research log](#research-log).
+Results so far cover RQ1 for five open models. Sarvam's Saaras and the RQ2
+results are added as they run; see the [research log](#research-log).
+
+Two terms used throughout: the **numeric value error** is the share of numbers
+written as digits in the reference whose value is missing from the
+hypothesis, after spoken numbers on both sides are parsed ("तिरेपन" and "53"
+are the same value). **Held-out** utterances are FLEURS test and dev, which no
+evaluated system was trained on.
 
 ## Key takeaway
 
-<!-- takeaway -->
-On FLEURS Hindi, with five open ASR systems and 95% cluster-bootstrap intervals:
+On FLEURS Hindi, with five open ASR systems and 95% cluster-bootstrap
+intervals:
 
-- **WER does not tell you which system gets the numbers right.** On held-out
-  utterances with numbers, MMS-1B has the lowest WER of all five systems, yet
-  misses about half of the numbers in the references, more than twice as many
-  as Whisper large-v3. Both reversals against the Whisper large models are
-  significant on both metrics. For a voice payment or form-filling product,
-  the WER winner is the wrong choice.
+- **WER and the numeric value error disagree about MMS-1B.** On held-out
+  utterances with numbers (85 utterances, 135 numbers), MMS-1B has the lowest
+  WER of the five systems (23.1%) but misses 67 of the 135 numbers (49.6%),
+  2.7 times as many as Whisper large-v3 (25, 18.5%). Against both Whisper large
+  models the two metrics rank MMS in opposite order, and both differences are
+  significant. Forgiving misspelled number words changes this very little
+  (48.1% against 17.0%), so it is not an artefact of strict spelling. Among
+  the four Whisper models the two metrics agree. The sample is small and the
+  intervals are wide, but where numbers matter, WER alone would pick the wrong
+  one of these two systems.
+- **WER can barely see numbers.** Numbers are 6% of the reference words, so
+  even missing half of them costs MMS at most 3.0 WER points. Normalising
+  spelling and numbers changes WER by only 1 to 3 points.
 - **The stock Whisper normaliser makes Hindi WER look 8 to 12 points lower**
-  for every system, because it deletes vowel signs and so splits words. It
-  shifts all systems alike, so it changes the numbers people report, not the
+  for every system on the held-out set (8 to 19 points across all subsets),
+  because it deletes vowel signs and so splits words. It does not change the
   ranking.
-- **Spelling and number normalisation move WER by only 1 to 3 points.** WER is
-  dominated by other words, so it is nearly blind to whether the numbers, the
-  part users act on, came out right.
-
-The tables below are generated from [`results/`](results/) by `asr-audit report`.
-<!-- /takeaway -->
 
 ## Summary of results
 
 ### RQ1: scoring conventions (FLEURS Hindi, held-out utterances with numbers)
 
-WER (%) at four normalisation levels and the numeric value error (%), with 95%
-cluster-bootstrap intervals. Sorted by WER at the most lenient level.
+<!-- rq1-size -->
+85 utterances, 56 sentences, 2239 reference words, of which 135 are numbers written as digits.
+<!-- /rq1-size -->
+
+WER (%) at four normalisation levels, and the numeric value error (%), strict
+and lenient (misspelled number words forgiven, wrong digits never). 95%
+cluster-bootstrap intervals; sorted by WER at the `numbers` level.
 
 <!-- rq1-wer -->
-| system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error |
-|---|---|---|---|---|---|
-| `mms-1b-all` | 16.2 [13.4, 20.1] | 25.1 [22.6, 27.9] | 23.7 [21.1, 26.6] | 23.1 [20.4, 25.9] | 49.6 [39.1, 60.1] |
-| `whisper-large-v3` | 20.9 [17.7, 25.0] | 29.3 [26.8, 32.1] | 27.4 [24.3, 30.6] | 26.7 [23.5, 30.0] | 18.5 [7.8, 29.9] |
-| `whisper-large-v3-turbo` | 24.1 [19.6, 29.7] | 33.6 [29.0, 40.6] | 31.7 [26.6, 39.0] | 31.3 [26.3, 38.6] | 23.7 [13.3, 35.2] |
-| `whisper-medium` | 38.2 [30.7, 48.1] | 50.4 [41.3, 63.9] | 49.4 [39.9, 62.8] | 48.9 [39.5, 62.4] | 35.6 [23.9, 46.8] |
-| `whisper-small` | 68.3 [55.9, 83.4] | 76.4 [66.9, 87.8] | 75.6 [66.0, 87.1] | 75.0 [65.5, 86.5] | 78.5 [69.2, 86.3] |
+| system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error | lenient numeric error |
+|---|---|---|---|---|---|---|
+| `mms-1b-all` | 16.2 [13.4, 20.1] | 25.1 [22.6, 27.9] | 23.7 [21.1, 26.6] | 23.1 [20.4, 25.9] | 49.6 [39.1, 60.1] | 48.1 [37.9, 58.7] |
+| `whisper-large-v3` | 20.9 [17.7, 25.0] | 29.3 [26.8, 32.1] | 27.4 [24.3, 30.6] | 26.7 [23.5, 30.0] | 18.5 [7.8, 29.9] | 17.0 [6.8, 27.8] |
+| `whisper-large-v3-turbo` | 24.1 [19.6, 29.7] | 33.6 [29.0, 40.6] | 31.7 [26.6, 39.0] | 31.3 [26.3, 38.6] | 23.7 [13.3, 35.2] | 22.2 [12.6, 32.8] |
+| `whisper-medium` | 38.2 [30.7, 48.1] | 50.4 [41.3, 63.9] | 49.4 [39.9, 62.8] | 48.9 [39.5, 62.4] | 35.6 [23.9, 46.8] | 34.8 [23.1, 46.2] |
+| `whisper-small` | 68.3 [55.9, 83.4] | 76.4 [66.9, 87.8] | 75.6 [66.0, 87.1] | 75.0 [65.5, 86.5] | 78.5 [69.2, 86.3] | 74.8 [64.8, 83.1] |
 <!-- /rq1-wer -->
 
-Does WER rank systems the way the numeric value error does? Pairs of systems
-that the two metrics put in opposite order; a reversal is significant when the
-paired intervals of both differences exclude zero:
+Pairs of systems that WER (at the `numbers` level) and the numeric value error
+put in opposite order. A reversal is significant when the paired bootstrap
+intervals of both differences exclude zero; the two significant pairs share
+MMS, so they are not independent.
 
 <!-- rq1-disagreement -->
-| subset | systems | Kendall tau | pairs reversed | significant reversals |
+| subset | systems | Kendall tau | reversed, significant | reversed, not significant |
 |---|---|---|---|---|
-| held_out_numeric | 5 | 0.40 | 3 | whisper-large-v3/mms-1b-all, whisper-large-v3-turbo/mms-1b-all |
-| numeric | 4 | 1.00 | 0 |  |
+| held-out, with numbers | 5 | 0.40 | `whisper-large-v3-turbo` vs `mms-1b-all`, `whisper-large-v3` vs `mms-1b-all` | `whisper-medium` vs `mms-1b-all` |
+| all with numbers (no MMS) | 4 | 1.00 | none | none |
 <!-- /rq1-disagreement -->
+
+What drives each system's WER: outputs more than twice as long as the
+reference (Whisper repetition loops), WER without them, and the most WER points
+that missed numbers can account for (each missed number costs at most one word
+error).
+
+<!-- rq1-diagnostics -->
+| system | WER | outputs over 2× reference length | WER without them | missed numbers | most WER points from numbers |
+|---|---|---|---|---|---|
+| `mms-1b-all` | 23.1 | 0 | 23.1 | 67 of 135 | 3.0 |
+| `whisper-large-v3` | 26.7 | 0 | 26.7 | 25 of 135 | 1.1 |
+| `whisper-large-v3-turbo` | 31.3 | 1 | 28.8 | 32 of 135 | 1.4 |
+| `whisper-medium` | 48.9 | 1 | 44.2 | 48 of 135 | 2.1 |
+| `whisper-small` | 75.0 | 5 | 65.0 | 106 of 135 | 4.7 |
+<!-- /rq1-diagnostics -->
 
 Paired change in WER (percentage points) from one normalisation level to the
 next:
 
 <!-- rq1-steps -->
-| system | whisper->basic | basic->spelling | spelling->numbers |
+| system | whisper → basic | basic → spelling | spelling → numbers |
 |---|---|---|---|
 | `mms-1b-all` | +8.8 [+5.5, +11.5] | -1.3 [-1.9, -0.8] | -0.7 [-1.1, -0.3] |
 | `whisper-large-v3` | +8.4 [+4.7, +11.3] | -1.9 [-3.1, -0.8] | -0.7 [-1.2, -0.3] |
@@ -80,41 +108,28 @@ next:
 | `whisper-small` | +8.1 [+0.7, +14.5] | -0.8 [-1.2, -0.4] | -0.6 [-1.0, -0.3] |
 <!-- /rq1-steps -->
 
+<!-- rq1-ranks -->
+No pair of systems changes order between any two normalisation levels, in any subset (Kendall tau = 1 throughout).
+<!-- /rq1-ranks -->
+
 All utterances with numbers (more data, but MMS is left out because it was
 trained on FLEURS train):
 
 <!-- rq1-wer-all-numeric -->
-| system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error |
-|---|---|---|---|---|---|
-| `whisper-large-v3` | 21.6 [20.3, 23.3] | 30.6 [29.4, 31.8] | 28.8 [27.7, 30.0] | 27.9 [26.8, 29.1] | 16.8 [13.6, 20.2] |
-| `whisper-large-v3-turbo` | 24.9 [23.2, 26.8] | 35.2 [33.3, 37.6] | 33.6 [31.6, 36.0] | 32.7 [30.8, 35.1] | 27.0 [23.2, 31.2] |
-| `whisper-medium` | 35.5 [33.2, 38.3] | 46.6 [44.3, 49.3] | 45.3 [43.0, 48.0] | 44.5 [42.2, 47.2] | 31.9 [27.6, 36.5] |
-| `whisper-small` | 69.6 [64.4, 75.4] | 84.8 [78.2, 92.4] | 84.2 [77.6, 91.8] | 83.6 [76.9, 91.2] | 72.0 [67.7, 76.3] |
+| system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error | lenient numeric error |
+|---|---|---|---|---|---|---|
+| `whisper-large-v3` | 21.6 [20.3, 23.3] | 30.6 [29.4, 31.8] | 28.8 [27.7, 30.0] | 27.9 [26.8, 29.1] | 16.8 [13.6, 20.2] | 15.9 [12.9, 19.3] |
+| `whisper-large-v3-turbo` | 24.9 [23.2, 26.8] | 35.2 [33.3, 37.6] | 33.6 [31.6, 36.0] | 32.7 [30.8, 35.1] | 27.0 [23.2, 31.2] | 23.6 [20.2, 27.6] |
+| `whisper-medium` | 35.5 [33.2, 38.3] | 46.6 [44.3, 49.3] | 45.3 [43.0, 48.0] | 44.5 [42.2, 47.2] | 31.9 [27.6, 36.5] | 28.7 [24.7, 33.1] |
+| `whisper-small` | 69.6 [64.4, 75.4] | 84.8 [78.2, 92.4] | 84.2 [77.6, 91.8] | 83.6 [76.9, 91.2] | 72.0 [67.7, 76.3] | 66.8 [62.3, 71.2] |
 <!-- /rq1-wer-all-numeric -->
-
-Does the ranking change with the level? Kendall tau against the stock Whisper
-normaliser, and the number of system pairs whose order flips:
-
-<!-- rq1-ranks -->
-| subset | versus | n_systems | kendall_tau | pairs_flipped |
-|---|---|---|---|---|
-| held_out_numeric | whisper vs basic | 5 | 1.00 | 0 |
-| held_out_numeric | whisper vs spelling | 5 | 1.00 | 0 |
-| held_out_numeric | whisper vs numbers | 5 | 1.00 | 0 |
-| numeric | whisper vs basic | 4 | 1.00 | 0 |
-| numeric | whisper vs spelling | 4 | 1.00 | 0 |
-| numeric | whisper vs numbers | 4 | 1.00 | 0 |
-| control | whisper vs basic | 5 | 1.00 | 0 |
-| control | whisper vs spelling | 5 | 1.00 | 0 |
-| control | whisper vs numbers | 5 | 1.00 | 0 |
-<!-- /rq1-ranks -->
 
 ![WER by normalisation level](results/rq1/fleurs_hi_in/wer_by_level.png)
 
 ### RQ2: synthetic versus real test sets
 
 <!-- rq2 -->
-In progress.
+In progress: the synthetic sets are being transcribed.
 <!-- /rq2 -->
 
 ## Why this matters
@@ -150,19 +165,17 @@ with the Hindi adapter, all pinned to a Hugging Face revision in
 [`configs/systems.toml`](configs/systems.toml). Sarvam Saaras v4 in its
 `transcribe` (numbers as digits) and `verbatim` (numbers as spoken) modes is
 configured and will be added once it has run; it isolates the effect of an
-output convention within one model.
-Whisper is decoded greedily with a token limit of 25 tokens per second of
-audio. The real FLEURS Hindi references need at most 19 tokens per second
-(99th percentile 16.9) with Whisper's tokenizer, so the limit only stops
-runaway repetition; outputs that reach it are counted in each run's
-`.meta.json`.
+output convention within one model. Whisper is decoded greedily in batches,
+with a token limit of 25 tokens per second of the longest clip in the batch.
+The FLEURS Hindi references need at most 19 tokens per second (99th percentile
+16.9) with Whisper's tokenizer, so the limit only cuts off runaway repetition.
 
 **Normalisation levels** ([`normalize.py`](src/indic_asr_audit/normalize.py)):
 
 | Level | What it does |
 |---|---|
 | `whisper` | Whisper's `BasicTextNormalizer`, the default in many open evaluations. It replaces every Unicode mark with a space, which deletes Hindi vowel signs and the virama ([Manohar et al., 2024](https://arxiv.org/abs/2409.02449)). |
-| `basic` | Unicode NFC, lower case, punctuation removed, native digits mapped to ASCII, thousands separators removed. Vowel signs are kept. |
+| `basic` | Unicode NFC, lower case, punctuation removed, native digits mapped to ASCII, thousands separators removed, currency and percent signs read as words. Vowel signs are kept. |
 | `spelling` | `basic`, plus accepted spelling variants merged: nukta dropped, chandrabindu written as anusvara. |
 | `numbers` | `spelling`, plus every number rewritten as digits: "उन्नीस सौ नब्बे" → 1990, "ढाई लाख" → 250000, "पंद्रहवीं" → "15 वीं". |
 
@@ -171,40 +184,49 @@ is its value present anywhere in the hypothesis, after both sides are parsed?
 The parser ([`numbers.py`](src/indic_asr_audit/numbers.py)) handles the Indian
 place-value system, fraction words (सवा, डेढ़, ढाई, साढ़े, पौने), decimals,
 ordinals and digits mixed with words ("8 लाख"). Every number spelled by the
-companion speller parses back to the same value (tested on 5,500 values).
+companion speller parses back to the same value (tested on 5,500 values). The
+lenient variant also accepts a run of number words within 0.25 normalised
+edit distance of the spelled-out value ("पंद्रा" for पंद्रह), but never a
+word containing a wrong digit ("1093" for 1963, "7त्तर" for 70).
 
 **Statistics.** Corpus rates are sums of errors over sums of reference words.
 Intervals are 95% percentile intervals from 2,000 bootstrap resamples of
-sentences, not utterances, since FLEURS has up to two recordings per sentence.
-Differences between levels or systems are paired: both sides use the same
-resamples.
+sentences, not utterances, since FLEURS has up to three recordings per
+sentence. Differences between levels or systems are paired: both sides use the
+same resamples.
 
 **Synthetic test sets (RQ2).** Each sentence is verbalised (digits, currency,
 dates and times written as words), spoken by a TTS engine, checked and saved in
-clean and telephony (300–3400 Hz, 8 kHz, G.711 μ-law) versions by a
+clean and telephony (300–3400 Hz, 8 kHz, G.711-style μ-law) versions by a
 [LangGraph](https://github.com/langchain-ai/langgraph) workflow
 ([`synth.py`](src/indic_asr_audit/synth.py)). The check deliberately uses no
 ASR model, since filtering clips by one system's accuracy would favour that
-system: a clip passes if its length is within 0.5–2× of the real recording and
-it is neither silent nor clipped; otherwise the next voice is tried. Engines:
-Meta MMS-TTS (open weights, CC BY-NC 4.0) and Sarvam Bulbul.
+system: a clip passes if its speech lasts 0.5–2× as long as the real
+recording's speech and it is neither silent nor clipped; otherwise the next
+voice is tried. Sentences whose spoken form still contains Latin letters
+("H5N1") are left out, because a Hindi voice may skip them. Every remaining
+FLEURS reference scores the same after verbalisation as before (tested). Two
+real recordings of the same sentence give a noise ceiling for agreement.
+Engines: Meta MMS-TTS (open weights, CC BY-NC 4.0) and Sarvam Bulbul.
 
 ## Limitations
 
 - FLEURS is read Wikipedia text, not conversational or transactional speech;
   its numbers are mostly years, counts and measurements, not prices.
-- The held-out subset is small (85 utterances), so its intervals are wide.
+- The held-out subset is small (85 utterances, 56 sentences, 135 numbers), so
+  its intervals are wide, and only one system (MMS) differs in kind from the
+  Whisper family.
+- The numeric value error is strict about spelling. The lenient variant
+  bounds this effect; it forgives only close misspellings, so a badly garbled
+  but recognisable number word still counts as missed.
 - "Control" means no digit in the reference; a control can still contain a
   number written as a word.
-- The numeric value error is strict about spelling. A number word with a
-  phonetic misspelling ("पंद्रा" for पंद्रह, "सो" for सौ, "ग्यारवी" for
-  ग्यारहवीं) counts as missing, although a reader would recover the value.
-  Whisper models make this kind of miss; MMS misses are mostly garbled digits
-  ("7त्तर" for सत्तर, "1093" for 1963). Measuring how often a lenient judge
-  disagrees is the next experiment.
 - The numeric value error matches values anywhere in the hypothesis. The
   article "एक" and the verb "दो" (give) parse as 1 and 2, which can hide a
   missed number; leading zeros are dropped.
+- Whisper small and medium produce repetition loops on some utterances, which
+  inflate their WER (see the table above); the ranking is the same without
+  them.
 - FLEURS has no speaker ids, so the bootstrap does not model speaker
   dependence and intervals may be slightly narrow.
 - Whisper and Saaras may have seen FLEURS test or dev data; this cannot be
@@ -221,6 +243,7 @@ Meta MMS-TTS (open weights, CC BY-NC 4.0) and Sarvam Bulbul.
 Next:
 
 - RQ2 results with MMS-TTS and Bulbul, clean and telephony.
+- Saaras v4 in `transcribe` and `verbatim` modes.
 - Agreement between the numeric value error, an LLM judge in the style of
   Sarvam's `llm_wer`, and a small human-labelled set.
 - RQ3: does LoRA fine-tuning on synthetic, number-dense speech reduce the
@@ -265,9 +288,9 @@ source .venv/bin/activate            # Windows PowerShell: .venv\Scripts\Activat
 pip install torch --index-url https://download.pytorch.org/whl/cu128   # cu128+ for RTX 50-series
 pip install -e ".[asr,synth,dev]"
 
-asr-audit prepare-fleurs                       # ~1.6 GB download, writes the manifest
+asr-audit prepare-fleurs                       # ~1.6 GB download; audio and the manifest
 asr-audit transcribe whisper-small whisper-medium whisper-large-v3 \
-    whisper-large-v3-turbo mms-1b-all          # GPU, about 1.5 h in total
+    whisper-large-v3-turbo mms-1b-all          # GPU, about 2.5 h one model at a time
 asr-audit rq1                                  # CPU, writes results/rq1/
 asr-audit synthesize mms-tts                   # CPU, writes synthetic manifests
 asr-audit transcribe whisper-small --dataset fleurs_hi_in-mms-tts-clean
@@ -276,9 +299,12 @@ asr-audit report                               # refreshes the tables in this RE
 pytest
 ```
 
-Transcripts and result tables are committed, so `rq1`, `rq2` and `report` run
-on a CPU-only machine without any model. Sarvam systems need `SARVAM_API_KEY`
-(see [`.env.example`](.env.example)).
+`transcribe` needs the audio from `prepare-fleurs`. Transcripts and result
+tables are committed, so `rq1`, `rq2` and `report` run on a CPU-only machine
+without any model or audio, and every table in this README is generated from
+[`results/`](results/) by `asr-audit report`. Each transcript file has a
+`.meta.json` with the model revision, decoding settings and package versions.
+Sarvam systems need `SARVAM_API_KEY` (see [`.env.example`](.env.example)).
 
 To add another language, see
 [docs/extending-to-new-languages.md](docs/extending-to-new-languages.md).
