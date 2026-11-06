@@ -2,23 +2,33 @@
 
 Each sentence goes through a small LangGraph workflow:
 
-    verbalize -> synthesize -> check --ok--> save
-                    ^            |
-                    +--retry-----+ (next voice)
-                                 |
-                                 +--give up--> reject
+    verbalize --text ok--> synthesize -> check --ok--> save
+        |                     ^            |
+        |                     +--retry-----+ (next voice)
+        |                                  |
+        +--Latin text--> reject <--give up-+
 
 The check uses no ASR model. Filtering clips by how well some ASR system
 recognises them would favour that system, which is exactly the comparison
-the synthetic set is built to test. Instead, a clip passes when its length
-is close to the real recording of the same sentence and it is neither silent
-nor clipped.
+the synthetic set is built to test. Instead, a clip passes when its speech
+(silence trimmed) lasts about as long as the real recording's speech, and it
+is neither silent nor clipped. Sentences whose spoken text still contains
+Latin letters (codes such as "H5N1", units such as "mm") are rejected before
+synthesis, because a Hindi voice may skip or misread them and the clip would
+then not say the reference.
 """
 
+import base64
+import hashlib
+import io
 import json
 import os
+import random
+import time
+import zlib
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from math import gcd
 from pathlib import Path
 from typing import Any, Literal, Protocol, TypedDict
@@ -26,12 +36,15 @@ from typing import Any, Literal, Protocol, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from indic_asr_audit.asr import SAMPLE_RATE, Audio
+from indic_asr_audit.asr import SAMPLE_RATE, Audio, load_audio, package_versions
 from indic_asr_audit.data import Utterance
 from indic_asr_audit.languages.base import LanguagePack
-from indic_asr_audit.normalize import verbalize
+from indic_asr_audit.normalize import has_latin, verbalize
 
 Condition = Literal["clean", "telephony"]
+CONDITIONS: tuple[Condition, ...] = ("clean", "telephony")
+# Bump when verbalize() changes what is spoken, so old clips are not reused.
+VERBALIZER_VERSION = 2
 
 
 class TTSEngine(Protocol):
@@ -66,10 +79,11 @@ def _resample(audio: NDArray[Any], rate: int, target: int) -> Audio:
 
 
 class MMSTTS:
-    """Meta's MMS VITS model for one language (CC BY-NC 4.0 weights).
+    """Meta's MMS VITS model for one language (CC BY-NC 4.0 weights), on CPU.
 
     It has a single speaker; its "voices" are random seeds, which vary the
-    stochastic duration and pitch predictors and so the prosody.
+    stochastic duration and pitch predictors and so the prosody. Seeded
+    output is reproducible on CPU; GPU kernels may differ.
     """
 
     def __init__(self, model: str, revision: str, seeds: Sequence[int] = (0, 1, 2)) -> None:
@@ -91,13 +105,32 @@ class MMSTTS:
 
     def describe(self) -> dict[str, Any]:
         """Return the settings that determine the output."""
-        return {"engine": self.name, "model": self.model_id, "revision": self.revision}
+        config = self.model.config
+        return {
+            "engine": self.name,
+            "model": self.model_id,
+            "revision": self.revision,
+            "voices": self.voices,
+            "device": "cpu",
+            "speaking_rate": config.speaking_rate,
+            "noise_scale": config.noise_scale,
+            "noise_scale_duration": config.noise_scale_duration,
+            "versions": package_versions("torch", "transformers"),
+        }
 
 
 class BulbulTTS:
-    """Sarvam's hosted Bulbul model. Needs SARVAM_API_KEY."""
+    """Sarvam's hosted Bulbul model. Needs SARVAM_API_KEY.
 
-    def __init__(self, model: str, language: str, voices: Sequence[str]) -> None:
+    A hosted model can change without notice; the saved clips, not the API,
+    are the reproducible artifact.
+    """
+
+    RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+
+    def __init__(
+        self, model: str, language: str, voices: Sequence[str], max_retries: int = 5
+    ) -> None:
         from sarvamai import SarvamAI
 
         key = os.environ.get("SARVAM_API_KEY")
@@ -106,41 +139,66 @@ class BulbulTTS:
         self.client = SarvamAI(api_subscription_key=key)
         self.name, self.model, self.language = "bulbul", model, language
         self.voices = list(voices)
+        self.max_retries = max(1, max_retries)
+
+    def _request(self, text: str, voice: str) -> Any:
+        for attempt in range(self.max_retries):
+            try:
+                return self.client.text_to_speech.convert(
+                    text=text,
+                    language_code=self.language,
+                    speaker=voice,
+                    model=self.model,
+                    speech_sample_rate=SAMPLE_RATE,
+                )
+            except Exception as error:  # the SDK raises one class per HTTP status
+                status = getattr(error, "status_code", None)
+                if status not in self.RETRY_STATUS or attempt == self.max_retries - 1:
+                    raise
+                time.sleep(2**attempt + random.random())
+        raise RuntimeError("unreachable: the last attempt returns or raises")
 
     def synthesize(self, text: str, voice: str) -> Audio:
         """Return 16 kHz mono audio for text spoken by the given speaker."""
-        import base64
-        import io
-
         import soundfile as sf
 
-        response = self.client.text_to_speech.convert(
-            text=text,
-            language_code=self.language,
-            speaker=voice,
-            model=self.model,
-            speech_sample_rate=SAMPLE_RATE,
-        )
-        audio, rate = sf.read(io.BytesIO(base64.b64decode("".join(response.audios))))
-        mono = np.asarray(audio, dtype=np.float32).reshape(len(audio), -1).mean(axis=1)
-        return _resample(mono, rate, SAMPLE_RATE)
+        chunks = []
+        for chunk in self._request(text, voice).audios:  # long text: several WAV files
+            audio, rate = sf.read(io.BytesIO(base64.b64decode(chunk)), always_2d=True)
+            chunks.append(_resample(audio.mean(axis=1), rate, SAMPLE_RATE))
+        return np.concatenate(chunks)
 
     def describe(self) -> dict[str, Any]:
         """Return the settings that determine the output."""
-        return {"engine": self.name, "model": self.model, "voices": self.voices}
+        return {
+            "engine": self.name,
+            "model": self.model,
+            "language": self.language,
+            "voices": self.voices,
+            "versions": package_versions("sarvamai"),
+        }
 
 
 def telephony(audio: Audio) -> Audio:
-    """Simulate a narrowband phone call: 300-3400 Hz, 8 kHz, G.711 mu-law."""
+    """Simulate a narrowband phone call: 300-3400 Hz, 8 kHz, G.711-style mu-law.
+
+    The band-pass filter is causal, so it shifts phase a little, as real
+    channels do. Quantisation follows the mu-law curve with 8-bit codes but
+    is not bit-exact G.711.
+    """
     from scipy.signal import butter, sosfilt
 
     narrow = _resample(audio, SAMPLE_RATE, 8000)
     band = sosfilt(butter(4, [300, 3400], btype="bandpass", fs=8000, output="sos"), narrow)
-    mu = 255.0
-    clipped = np.clip(band, -1.0, 1.0)
-    encoded = np.round(np.sign(clipped) * np.log1p(mu * np.abs(clipped)) / np.log1p(mu) * 127)
-    decoded = np.sign(encoded) * np.expm1(np.abs(encoded) / 127 * np.log1p(mu)) / mu
-    return _resample(decoded.astype(np.float32), 8000, SAMPLE_RATE)
+    return _resample(mu_law(band), 8000, SAMPLE_RATE)
+
+
+def mu_law(audio: NDArray[Any], mu: float = 255.0) -> Audio:
+    """Compress to signed 8-bit mu-law codes and expand back."""
+    clipped = np.clip(audio, -1.0, 1.0)
+    codes = np.round(np.sign(clipped) * np.log1p(mu * np.abs(clipped)) / np.log1p(mu) * 127)
+    expanded = np.sign(codes) * np.expm1(np.abs(codes) / 127 * np.log1p(mu)) / mu
+    return np.asarray(expanded, dtype=np.float32)
 
 
 @dataclass(frozen=True)
@@ -153,16 +211,29 @@ class CheckLimits:
     max_clipped_fraction: float = 0.001
 
 
-def check_clip(audio: Audio, real_seconds: float, limits: CheckLimits) -> list[str]:
+def speech_seconds(audio: Audio, threshold_db: float = -40.0) -> float:
+    """Time from the first to the last 20 ms frame within 40 dB of the loudest."""
+    frame = SAMPLE_RATE // 50
+    frames = len(audio) // frame
+    if frames == 0:
+        return 0.0
+    energy = np.sqrt(np.mean(audio[: frames * frame].reshape(frames, frame) ** 2, axis=1))
+    if not energy.max():
+        return 0.0
+    loud = np.flatnonzero(energy >= energy.max() * 10 ** (threshold_db / 20))
+    return float(loud[-1] - loud[0] + 1) * frame / SAMPLE_RATE
+
+
+def check_clip(audio: Audio, real_speech_seconds: float, limits: CheckLimits) -> list[str]:
     """Return the problems with a clip; an empty list means it passes."""
+    if len(audio) == 0 or float(np.sqrt(np.mean(audio**2))) < limits.min_rms:
+        return ["silent"]
     problems = []
-    ratio = len(audio) / SAMPLE_RATE / real_seconds
+    if float(np.mean(np.abs(audio) >= 0.999)) > limits.max_clipped_fraction:
+        problems.append("clipped")
+    ratio = speech_seconds(audio) / max(real_speech_seconds, 1e-3)
     if not limits.min_duration_ratio <= ratio <= limits.max_duration_ratio:
         problems.append(f"duration ratio {ratio:.2f}")
-    if len(audio) == 0 or float(np.sqrt(np.mean(audio**2))) < limits.min_rms:
-        problems.append("silent")
-    elif float(np.mean(np.abs(audio) >= 0.999)) > limits.max_clipped_fraction:
-        problems.append("clipped")
     return problems
 
 
@@ -179,44 +250,58 @@ class ClipState(TypedDict, total=False):
     status: Literal["saved", "rejected"]
 
 
+def first_voice(sentence_id: str, n_voices: int) -> int:
+    """Stable, content-neutral voice for a sentence; retries take the next ones."""
+    return zlib.crc32(sentence_id.encode()) % n_voices
+
+
+def _write_wav(path: Path, audio: Audio) -> None:
+    import soundfile as sf
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_suffix(".part.wav")
+    sf.write(partial, audio, SAMPLE_RATE, subtype="PCM_16")
+    partial.replace(path)
+
+
 def build_graph(
     engine: TTSEngine,
     pack: LanguagePack,
     out_dir: Path,
-    conditions: Sequence[Condition] = ("clean", "telephony"),
+    conditions: Sequence[Condition] = CONDITIONS,
     limits: CheckLimits | None = None,
     max_attempts: int = 3,
-) -> Any:
+) -> Any:  # a compiled LangGraph graph; its generic type adds nothing here
     """Compile the synthesis workflow for one engine."""
     from langgraph.graph import END, START, StateGraph
 
     limits = limits or CheckLimits()
 
     def verbalize_node(state: ClipState) -> ClipState:
-        return {"spoken": verbalize(state["utterance"].text, pack), "attempt": 0}
+        spoken = verbalize(state["utterance"].text, pack)
+        return {"spoken": spoken, "attempt": 0, "problems": ["latin text"] * has_latin(spoken)}
 
     def synthesize_node(state: ClipState) -> ClipState:
-        index = (int(state["utterance"].sentence_id) + state["attempt"]) % len(engine.voices)
-        voice = engine.voices[index]
+        first = first_voice(state["utterance"].sentence_id, len(engine.voices))
+        voice = engine.voices[(first + state["attempt"]) % len(engine.voices)]
         return {"voice": voice, "audio": engine.synthesize(state["spoken"], voice)}
 
     def check_node(state: ClipState) -> ClipState:
         problems = check_clip(state["audio"], state["real_seconds"], limits)
         return {"problems": problems, "attempt": state["attempt"] + 1}
 
-    def route(state: ClipState) -> str:
+    def after_verbalize(state: ClipState) -> str:
+        return "reject" if state["problems"] else "synthesize"
+
+    def after_check(state: ClipState) -> str:
         if not state["problems"]:
             return "save"
         return "synthesize" if state["attempt"] < max_attempts else "reject"
 
     def save_node(state: ClipState) -> ClipState:
-        import soundfile as sf
-
-        variants = {"clean": state["audio"], "telephony": telephony(state["audio"])}
         for condition in conditions:
-            path = out_dir / condition / f"{state['utterance'].id}.wav"
-            path.parent.mkdir(parents=True, exist_ok=True)
-            sf.write(path, variants[condition], SAMPLE_RATE, subtype="PCM_16")
+            audio = state["audio"] if condition == "clean" else telephony(state["audio"])
+            _write_wav(out_dir / condition / f"{state['utterance'].id}.wav", audio)
         return {"status": "saved"}
 
     def reject_node(state: ClipState) -> ClipState:
@@ -229,12 +314,29 @@ def build_graph(
     graph.add_node("save", save_node)
     graph.add_node("reject", reject_node)
     graph.add_edge(START, "verbalize")
-    graph.add_edge("verbalize", "synthesize")
+    graph.add_conditional_edges("verbalize", after_verbalize, ["synthesize", "reject"])
     graph.add_edge("synthesize", "check")
-    graph.add_conditional_edges("check", route, ["save", "synthesize", "reject"])
+    graph.add_conditional_edges("check", after_check, ["save", "synthesize", "reject"])
     graph.add_edge("save", END)
     graph.add_edge("reject", END)
     return graph.compile()
+
+
+def output_dir(data_dir: Path, dataset: str, settings: dict[str, Any]) -> Path:
+    """Folder for one engine's clips, keyed by a hash of every setting that matters.
+
+    Changing the engine, its voices, the check or the verbaliser gives a new
+    folder, so clips made with other settings are never reused.
+    """
+    digest = hashlib.sha256(json.dumps(settings, sort_keys=True).encode()).hexdigest()[:10]
+    return data_dir / "audio" / "synth" / dataset / f"{settings['engine']['engine']}-{digest}"
+
+
+def _read_log(path: Path) -> dict[str, dict[str, Any]]:
+    if not path.exists():
+        return {}
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return {r["id"]: r for r in (json.loads(line) for line in lines if line.strip())}
 
 
 def synthesize_manifest(
@@ -243,48 +345,59 @@ def synthesize_manifest(
     utterances: Sequence[Utterance],
     data_dir: Path,
     dataset: str,
-    conditions: Sequence[Condition] = ("clean", "telephony"),
-) -> dict[Condition, list[Utterance]]:
-    """Speak every sentence once and return one manifest per condition.
+    conditions: Sequence[Condition] = CONDITIONS,
+    limits: CheckLimits | None = None,
+) -> tuple[dict[Condition, list[Utterance]], list[dict[str, Any]]]:
+    """Speak every sentence once; return one manifest per condition and the log.
 
-    Synthetic utterances keep the real utterance's id, text, sentence and
-    split, so every result can be paired with its real counterpart. Each
-    sentence is synthesised once, even if FLEURS has two real recordings.
+    The synthetic utterance takes the id of the sentence's first recording in
+    manifest order, so results pair with that real recording. Each sentence
+    is decided once: saved clips and earlier rejections are reused from the
+    log, which is appended to as the run goes.
     """
-    import soundfile as sf
-
-    out_dir = data_dir / "audio" / "synth" / dataset / engine.name
+    limits = limits or CheckLimits()
+    settings: dict[str, Any] = {
+        "engine": engine.describe(),
+        "limits": asdict(limits),
+        "conditions": list(conditions),
+        "verbalizer": VERBALIZER_VERSION,
+    }
+    out_dir = output_dir(data_dir, dataset, settings)
     out_dir.mkdir(parents=True, exist_ok=True)
-    graph = build_graph(engine, pack, out_dir, conditions)
-    log = []
-    first_take = {u.sentence_id: u for u in reversed(utterances)}
+    settings_path = out_dir / "settings.json"
+    if not settings_path.exists():
+        created = datetime.now(UTC).isoformat(timespec="seconds")
+        settings_path.write_text(json.dumps({**settings, "created": created}, indent=2))
+    log_path = out_dir / "synthesis_log.jsonl"
+    log = _read_log(log_path)
+    graph = build_graph(engine, pack, out_dir, conditions, limits)
+
+    first_take: dict[str, Utterance] = {}
+    for utt in utterances:
+        first_take.setdefault(utt.sentence_id, utt)
     manifests: dict[Condition, list[Utterance]] = {c: [] for c in conditions}
-    for utt in sorted(first_take.values(), key=lambda u: u.id):
-        if all((out_dir / c / f"{utt.id}.wav").exists() for c in conditions):
-            status, record = "saved", {"id": utt.id, "status": "saved", "cached": True}
-        else:
-            real_seconds = sf.info(data_dir / utt.audio).duration
+    for utt in first_take.values():
+        if utt.id not in log:
+            real_seconds = speech_seconds(load_audio(data_dir / utt.audio))
             final = graph.invoke({"utterance": utt, "real_seconds": real_seconds})
-            status = final["status"]
-            record = {
+            log[utt.id] = {
                 "id": utt.id,
-                "status": status,
+                "status": final["status"],
                 "voice": final.get("voice"),
                 "attempts": final["attempt"],
                 "problems": final["problems"],
                 "spoken": final["spoken"],
+                "has_number": utt.has_number,
+                "split": utt.split,
             }
-        log.append(record)
-        if status == "saved":
+            with log_path.open("a", encoding="utf-8", newline="\n") as f:
+                f.write(json.dumps(log[utt.id], ensure_ascii=False) + "\n")
+        if log[utt.id]["status"] == "saved":
             for condition in conditions:
                 audio = (out_dir / condition / f"{utt.id}.wav").relative_to(data_dir).as_posix()
                 fields = (utt.text, utt.sentence_id, "", utt.split, utt.has_number)
                 manifests[condition].append(Utterance(utt.id, audio, *fields))
-    (out_dir / "synthesis_log.jsonl").write_text(
-        "".join(json.dumps(r, ensure_ascii=False) + chr(10) for r in log), encoding="utf-8"
-    )
-    (out_dir / "engine.json").write_text(json.dumps(engine.describe(), indent=2), encoding="utf-8")
-    return manifests
+    return manifests, [log[u.id] for u in first_take.values()]
 
 
 def load_engine(path: Path, name: str) -> TTSEngine:
@@ -294,8 +407,17 @@ def load_engine(path: Path, name: str) -> TTSEngine:
     with path.open("rb") as f:
         options = dict(tomllib.load(f)[name])
     kind = options.pop("engine")
+    options.pop("related_systems", None)
     if kind == "mms":
         return MMSTTS(**options)
     if kind == "bulbul":
         return BulbulTTS(**options)
     raise ValueError(f"{name}: unknown engine '{kind}'")
+
+
+def related_systems(path: Path, name: str) -> set[str]:
+    """ASR systems from the same family as a TTS engine, listed in the TOML file."""
+    import tomllib
+
+    with path.open("rb") as f:
+        return set(tomllib.load(f)[name].get("related_systems", []))

@@ -8,6 +8,8 @@ from indic_asr_audit import __version__
 
 DEFAULT_DATA_DIR = Path("data")
 DEFAULT_SYSTEMS = Path("configs/systems.toml")
+DEFAULT_TTS = Path("configs/tts.toml")
+RESULTS = Path("results")
 
 
 def _manifest_path(dataset: str) -> Path:
@@ -74,21 +76,31 @@ def _rq1(args: argparse.Namespace) -> None:
 
 
 def _synthesize(args: argparse.Namespace) -> None:
+    import pandas as pd
+
     from indic_asr_audit.data import read_manifest, write_manifest
     from indic_asr_audit.languages import get_language
     from indic_asr_audit.synth import load_engine, synthesize_manifest
 
     utterances = read_manifest(_manifest_path(args.dataset))
+    suffix = "-numeric" if args.numeric_only else ""
     if args.numeric_only:
         utterances = [u for u in utterances if u.has_number]
     engine = load_engine(args.tts, args.engine)
-    manifests = synthesize_manifest(
+    manifests, records = synthesize_manifest(
         engine, get_language(args.lang), utterances, args.data_dir, args.dataset
     )
+    base = f"{args.dataset}-{args.engine}{suffix}"
     for condition, synthetic in manifests.items():
-        name = f"{args.dataset}-{args.engine}-{condition}"
-        write_manifest(_manifest_path(name), synthetic)
-        print(f"{name}: {len(synthetic)} utterances")
+        write_manifest(_manifest_path(f"{base}-{condition}"), synthetic)
+        print(f"{base}-{condition}: {len(synthetic)} utterances")
+    log = pd.DataFrame(records)
+    log["reason"] = [p[0].split(" ")[0] if p else "" for p in log["problems"]]
+    summary = log.groupby(["has_number", "split", "status", "reason"]).size().rename("sentences")
+    out = Path("results") / "synth" / f"{base}-summary.csv"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    summary.reset_index().to_csv(out, index=False)
+    print(summary.to_string())
 
 
 def _complete(dataset: str, names: list[str], ids: list[str]) -> dict[str, dict[str, str]]:
@@ -111,24 +123,37 @@ def _rq2(args: argparse.Namespace) -> None:
     from indic_asr_audit.data import read_manifest
     from indic_asr_audit.languages import get_language
     from indic_asr_audit.plots import plot_rq2
-    from indic_asr_audit.rq2 import rq2_tables
+    from indic_asr_audit.rq2 import real_ceiling, rq2_tables
+    from indic_asr_audit.synth import related_systems
 
+    pack = get_language(args.lang)
     systems = load_systems(args.systems)
+    excluded = {s: set(systems[s].exclude_splits) for s in systems}
+    real_utts = read_manifest(_manifest_path(args.dataset))
+    real_all = _complete(args.dataset, list(systems), [u.id for u in real_utts])
+    write_tables(real_ceiling(real_utts, real_all, pack, excluded), RESULTS / "rq2" / "ceiling")
     for name in args.synthetic:
         synthetic = read_manifest(_manifest_path(name))
         ids = [u.id for u in synthetic]
         real = _complete(args.dataset, list(systems), ids)
         synth = _complete(name, list(systems), ids)
         if not set(real) & set(synth):
-            raise SystemExit(
-                f"No system has complete transcripts for both {args.dataset} and {name}"
-            )
-        excluded = {s: set(systems[s].exclude_splits) for s in systems}
-        tables = rq2_tables(synthetic, real, synth, get_language(args.lang), excluded)
-        out_dir = Path("results") / "rq2" / name
+            raise SystemExit(f"No system has transcripts for both {args.dataset} and {name}")
+        engine = name.removeprefix(f"{args.dataset}-").rsplit("-", 1)[0].removesuffix("-numeric")
+        related = related_systems(args.tts, engine)
+        tables = rq2_tables(synthetic, real, synth, pack, excluded, related)
+        out_dir = RESULTS / "rq2" / name
         write_tables(tables, out_dir)
-        plot_rq2(tables["gap"], out_dir / "real_vs_synthetic.png", title=name)
+        if not tables["gap"].empty:
+            plot_rq2(tables["gap"], out_dir / "real_vs_synthetic.png", title=name)
         print(f"RQ2 for {name} written to {out_dir}")
+
+
+def _report(args: argparse.Namespace) -> None:
+    from indic_asr_audit.report import fill_readme, render_rq1
+
+    fill_readme(args.readme, render_rq1(Path("results") / "rq1" / args.dataset))
+    print(f"Updated {args.readme}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -158,7 +183,7 @@ def build_parser() -> argparse.ArgumentParser:
     synth.add_argument("engine", help="name from the TTS file")
     synth.add_argument("--dataset", default="fleurs_hi_in")
     synth.add_argument("--lang", default="hi", help="language pack code")
-    synth.add_argument("--tts", type=Path, default=Path("configs/tts.toml"))
+    synth.add_argument("--tts", type=Path, default=DEFAULT_TTS)
     synth.add_argument("--numeric-only", action="store_true", help="skip control utterances")
     synth.set_defaults(run=_synthesize)
 
@@ -172,7 +197,12 @@ def build_parser() -> argparse.ArgumentParser:
     rq2.add_argument("--dataset", default="fleurs_hi_in", help="the real dataset")
     rq2.add_argument("--lang", default="hi", help="language pack code")
     rq2.add_argument("--systems", type=Path, default=DEFAULT_SYSTEMS)
+    rq2.add_argument("--tts", type=Path, default=DEFAULT_TTS)
     rq2.set_defaults(run=_rq2)
+    report = commands.add_parser("report", help="fill the README tables from the results")
+    report.add_argument("--dataset", default="fleurs_hi_in")
+    report.add_argument("--readme", type=Path, default=Path("README.md"))
+    report.set_defaults(run=_report)
     return parser
 
 

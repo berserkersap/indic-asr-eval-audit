@@ -57,6 +57,8 @@ def _resample_index(n_clusters: int, n_resamples: int, seed: int) -> NDArray[np.
 def _interval(estimate: float, samples: NDArray[np.float64], confidence: float) -> Interval:
     if not 0 < confidence < 1:
         raise ValueError(f"confidence must be in (0, 1), got {confidence}")
+    if np.isnan(samples).all():
+        return Interval(estimate, float("nan"), float("nan"))
     tail = (1 - confidence) / 2 * 100
     low, high = np.nanpercentile(samples, [tail, 100 - tail])
     return Interval(estimate, float(low), float(high))

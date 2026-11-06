@@ -4,7 +4,7 @@ import unicodedata
 import pytest
 
 from indic_asr_audit.languages import get_language
-from indic_asr_audit.normalize import Level, normalize, verbalize, whisper_basic
+from indic_asr_audit.normalize import Level, has_latin, normalize, verbalize, whisper_basic
 
 HINDI = get_language("hi")
 
@@ -107,3 +107,23 @@ def test_verbalized_text_scores_like_the_reference() -> None:
     text = "1990 में 2.5 लाख लोग, 15वीं बार"
     spoken = verbalize(text, HINDI)
     assert normalize(spoken, HINDI, Level.NUMBERS) == normalize(text, HINDI, Level.NUMBERS)
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("$45 दिए", "पैंतालीस डॉलर दिए"),
+        ("¥130,000 का", "एक लाख तीस हज़ार येन का"),
+        ("कोड 0230 है", "कोड शून्य दो तीन शून्य है"),
+        ("133मी/सेकंड", "एक सौ तैंतीस मी/सेकंड"),
+    ],
+)
+def test_verbalize_symbols_leading_zeros_and_units(text: str, expected: str) -> None:
+    assert verbalize(text, HINDI) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "latin"), [("A1GP रेस", True), ("35mm है", True), ("53 साल", False)]
+)
+def test_has_latin_after_verbalize(text: str, latin: bool) -> None:
+    assert has_latin(verbalize(text, HINDI)) is latin

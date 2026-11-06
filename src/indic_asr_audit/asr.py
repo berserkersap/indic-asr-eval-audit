@@ -60,7 +60,8 @@ def _device_and_dtype() -> tuple[str, Any]:
     return "cpu", torch.float32
 
 
-def _package_versions(*names: str) -> dict[str, str]:
+def package_versions(*names: str) -> dict[str, str]:
+    """Installed versions of the named packages; missing ones are left out."""
     versions = {}
     for name in names:
         try:
@@ -366,7 +367,7 @@ def run_transcription(
     todo.sort(key=lambda u: sf.info(data_dir / u.audio).duration)
     meta: dict[str, Any] = {
         "config": config,
-        "versions": _package_versions("torch", "transformers", "sarvamai", "soundfile", "scipy"),
+        "versions": package_versions("torch", "transformers", "sarvamai", "soundfile", "scipy"),
         "batch_size": batch_size,
         "started": previous.get("started", datetime.now(UTC).isoformat(timespec="seconds")),
     }

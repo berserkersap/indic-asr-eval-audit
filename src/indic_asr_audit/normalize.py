@@ -47,7 +47,7 @@ _DIGIT_LETTER = re.compile(rf"(?<=\d)(?={_LETTER})|(?<={_LETTER})(?=\d)")
 _DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")
 _NUMBER = re.compile(r"\d+(?:\.\d+)?")
 _CLOCK_COLON = re.compile(r"(?<=\d):(?=\d)")
-_DIGIT_LATIN = re.compile(r"(?<=\d)(?=[a-z])", re.IGNORECASE)
+_LATIN = re.compile(r"[a-z]", re.IGNORECASE)
 _DECIMAL_PLACEHOLDER = "\ue000"  # private-use character, never in real text
 _WHISPER_BRACKETS = re.compile(r"[<\[][^>\]]*[>\]]")
 _WHISPER_PARENS = re.compile(r"\(([^)]+?)\)")
@@ -79,7 +79,7 @@ def _written_forms(text: str, pack: LanguagePack) -> str:
     for symbol, word in {**pack.prefix_symbols, **pack.symbols}.items():
         text = text.replace(symbol, f" {word} ")
     text = _ZERO_MINUTES.sub("", text)
-    return _DOTTED_DATE.sub(r"\1 \2 \3", text)
+    return _DOTTED_DATE.sub(lambda m: " ".join(str(int(part)) for part in m.groups()), text)
 
 
 def _basic(text: str, pack: LanguagePack) -> str:
@@ -113,11 +113,26 @@ def verbalize(text: str, pack: LanguagePack) -> str:
     """Rewrite text the way it is read aloud, for TTS engines that need words.
 
     Numbers are spelled out ("53" becomes "tirepan", "15vin" becomes
-    "pandrahvin"), currency and percent signs become words, and punctuation
-    is kept so the engine can phrase the sentence.
+    "pandrahvin"), a number with leading zeros is read digit by digit
+    ("007"), currency, percent and degree signs become words, and
+    punctuation is kept so the engine can phrase the sentence. Latin letters
+    are left as they are; see ``has_latin``.
     """
-    text = _written_forms(text, pack)
-    text = _DIGIT_LATIN.sub(" ", text)
-    text = _CLOCK_COLON.sub(" ", text)
-    text = _NUMBER.sub(lambda m: spell_number(Fraction(m.group()), pack), text)
-    return _SPACES.sub(" ", text).strip()
+    text = _CLOCK_COLON.sub(" ", _written_forms(text, pack))
+    return _SPACES.sub(" ", _NUMBER.sub(lambda m: _spoken(m, pack), text)).strip()
+
+
+def _spoken(match: re.Match[str], pack: LanguagePack) -> str:
+    digits = match.group()
+    if len(digits) > 1 and digits.startswith("0") and "." not in digits:
+        words = " ".join(spell_number(Fraction(d), pack) for d in digits)
+    else:
+        words = spell_number(Fraction(digits), pack)
+    rest = match.string[match.end() :]
+    glued = rest[:1].isalpha() and not rest.startswith(pack.ordinal_suffixes)
+    return f"{words} " if glued else words  # "35mm" -> "35 mm", "15vin" stays one word
+
+
+def has_latin(text: str) -> bool:
+    """True if text contains Latin letters, which a TTS voice may skip or misread."""
+    return bool(_LATIN.search(text))

@@ -187,8 +187,8 @@ HINDI = LanguagePack(
     decimal_points=frozenset({"दशमलव", "point", "पॉइंट"}),
     # Longest first, so "वीं" is split off before "वी".
     ordinal_suffixes=("वीं", "वां", "वें", "वी", "वा", "वे"),
-    symbols={"%": "प्रतिशत"},
-    prefix_symbols={"₹": "रुपये"},
+    symbols={"%": "प्रतिशत", "°": "डिग्री"},
+    prefix_symbols={"₹": "रुपये", "$": "डॉलर", "¥": "येन", "€": "यूरो", "£": "पाउंड"},
     spelling_folds=(
         # The nukta is often dropped in writing and by ASR (ज़्यादा / ज्यादा,
         # पढ़ना / पढना); almost no Hindi word pairs differ by it alone.
