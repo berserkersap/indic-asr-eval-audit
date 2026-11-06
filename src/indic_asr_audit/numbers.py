@@ -108,7 +108,7 @@ class _Builder:
             return False
         rest = self.current % _HUNDRED
         whole_hundred = self.current >= _HUNDRED and rest == 0
-        english_tens = english and self.last_was_english and rest % 10 == 0 and rest > 0
+        english_tens = english and self.last_was_english and rest % 10 == 0 and rest >= 20
         return (whole_hundred and value < _HUNDRED) or (english_tens and value < 10)
 
     def add_scale(self, scale: int) -> bool:
