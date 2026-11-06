@@ -150,3 +150,21 @@ def test_mu_law_has_at_most_255_levels_and_small_error() -> None:
     decoded = mu_law(signal)
     assert len(np.unique(decoded)) <= 255
     assert float(np.max(np.abs(decoded - signal))) < 0.04
+
+
+def test_engine_of_picks_the_longest_matching_engine(tmp_path: Path) -> None:
+    from indic_asr_audit.synth import engine_of
+
+    config = tmp_path / "tts.toml"
+    config.write_text('[mms]\nengine = "mms"\n[mms-tts]\nengine = "mms"\n', encoding="utf-8")
+    assert engine_of(config, "fleurs_hi_in-mms-tts-numeric-clean", "fleurs_hi_in") == "mms-tts"
+    with pytest.raises(ValueError, match="no engine"):
+        engine_of(config, "fleurs_hi_in-other-clean", "fleurs_hi_in")
+
+
+def test_deleted_clip_is_made_again(tmp_path: Path, corpus: list[Utterance]) -> None:
+    manifests, _ = run(FakeEngine(["a"]), corpus[:1], tmp_path)
+    (tmp_path / manifests["clean"][0].audio).unlink()
+    engine = FakeEngine(["a"])
+    run(engine, corpus[:1], tmp_path)
+    assert len(engine.requests) == 1

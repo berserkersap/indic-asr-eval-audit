@@ -195,3 +195,40 @@ def real_ceiling(
     first = [a for a, _ in pairs]
     second = {s: {a.id: hyps[b.id] for a, b in pairs} for s, hyps in real_hyps.items()}
     return rq2_tables(first, real_hyps, second, pack, excluded_splits)
+
+
+def selection_table(
+    real: Sequence[Utterance],
+    kept_ids: set[str],
+    real_hyps: Hypotheses,
+    pack: LanguagePack,
+    excluded_splits: dict[str, set[str]],
+) -> pd.DataFrame:
+    """Real-speech WER on sentences the synthetic set kept versus rejected.
+
+    If rejected sentences are much harder, the synthetic set is easier than
+    the real one for a reason that has nothing to do with TTS.
+    """
+    first_takes: dict[str, Utterance] = {}
+    for utt in real:
+        first_takes.setdefault(utt.sentence_id, utt)
+    rows = []
+    for system, hyps in real_hyps.items():
+        takes = [
+            u for u in first_takes.values() if u.split not in excluded_splits.get(system, set())
+        ]
+        for label, group in (
+            ("kept", [u for u in takes if u.id in kept_ids]),
+            ("rejected", [u for u in takes if u.id not in kept_ids]),
+        ):
+            if group:
+                counts = _word_counts(group, hyps, pack)
+                rows.append(
+                    {
+                        "system": system,
+                        "sentences": label,
+                        "n": len(group),
+                        "wer": corpus_rate(counts),
+                    }
+                )
+    return pd.DataFrame(rows)

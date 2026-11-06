@@ -5,7 +5,7 @@ import pytest
 
 from indic_asr_audit.data import Utterance
 from indic_asr_audit.languages import get_language
-from indic_asr_audit.rq2 import real_ceiling, rq2_tables
+from indic_asr_audit.rq2 import real_ceiling, rq2_tables, selection_table
 
 HINDI = get_language("hi")
 SENTENCES = ["उसने 53 किताबें खरीदीं", "कुल 800 सैनिक थे", "वह 2 बार घर गया", "यह 15 साल पुरानी बात है"]
@@ -81,3 +81,11 @@ def test_real_ceiling_compares_two_recordings_of_each_sentence() -> None:
     assert set(gap["n"]) == {1}
     assert row(gap, subset="numeric", system="x")["wer_gap"] > 0
     assert row(gap, subset="numeric", system="y")["wer_gap"] == 0
+
+
+def test_selection_table_splits_kept_and_rejected_sentences() -> None:
+    real = {"x": with_errors(2)}
+    table = selection_table(UTTERANCES, {"u2", "u3"}, real, HINDI, {})
+    by_label = {r["sentences"]: r for r in table.to_dict("records")}
+    assert by_label["kept"]["wer"] == 0
+    assert by_label["rejected"]["wer"] > 0

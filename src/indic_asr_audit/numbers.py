@@ -63,13 +63,16 @@ class _Builder:
         self.decimal: str | None = None  # digits read after a decimal point
         self.written_as_digits = False
         self.last_was_digit = False
+        self.last_was_english = False
 
-    def add_value(self, value: Fraction, *, is_digit: bool, before_hundred: bool) -> bool:
+    def add_value(
+        self, value: Fraction, *, is_digit: bool, before_hundred: bool, english: bool = False
+    ) -> bool:
         if self.decimal is not None:
             return self._add_decimal_digits(value)
         if self.last_was_digit or (is_digit and self.open_unit):
             return False  # "1900 20" and "shunya 5" are separate numbers
-        if self.open_unit and not self._extends_open_unit(value):
+        if self.open_unit and not self._extends_open_unit(value, english):
             return False
         if before_hundred and self.current >= _HUNDRED:
             return False  # "teen sau, chaar sau" is 300 then 400
@@ -83,6 +86,7 @@ class _Builder:
         self.open_unit = value < _HUNDRED or value.denominator != 1
         self.written_as_digits |= is_digit
         self.last_was_digit = is_digit
+        self.last_was_english = english
         return True
 
     def _add_decimal_digits(self, value: Fraction) -> bool:
@@ -93,18 +97,19 @@ class _Builder:
         self.decimal += str(value.numerator)
         return True
 
-    def _extends_open_unit(self, value: Fraction) -> bool:
+    def _extends_open_unit(self, value: Fraction, english: bool) -> bool:
         """Whether a unit may follow the open unit.
 
-        A unit may follow a whole hundred ("unnees sau nabbe", 1990) or a
-        ten when it is a single digit ("twenty five"). Otherwise, as in
-        "do teen", it starts a new number.
+        A unit may follow a whole hundred ("unnees sau nabbe", 1990). In
+        English a single digit may also follow a ten ("twenty five"); Hindi
+        has a word for every number below 100, so "das aath" is two numbers.
         """
         if value.denominator != 1 or self.current.denominator != 1:
             return False
         rest = self.current % _HUNDRED
         whole_hundred = self.current >= _HUNDRED and rest == 0
-        return (whole_hundred and value < _HUNDRED) or (rest % 10 == 0 and rest > 0 and value < 10)
+        english_tens = english and self.last_was_english and rest % 10 == 0 and rest > 0
+        return (whole_hundred and value < _HUNDRED) or (english_tens and value < 10)
 
     def add_scale(self, scale: int) -> bool:
         if self.decimal == "":
@@ -173,7 +178,9 @@ def _add_token(builder: _Builder, tokens: list[str], i: int, pack: LanguagePack)
         return None
     kind, amount = pack.number_words[token]
     if kind in (WordKind.UNIT, WordKind.FRACTION):
-        return builder.add_value(amount, is_digit=False, before_hundred=before_hundred)
+        return builder.add_value(
+            amount, is_digit=False, before_hundred=before_hundred, english=token.isascii()
+        )
     if kind is WordKind.SCALE:
         return builder.add_scale(int(amount))
     if kind is WordKind.OFFSET:

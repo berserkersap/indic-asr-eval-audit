@@ -159,3 +159,7 @@ def test_spelling_needs_spoken_forms() -> None:
     pack = LanguagePack(code="xx", name="Test", native_digits="", units={}, scales={})
     with pytest.raises(ValueError, match="no spoken forms"):
         spell_number(Fraction(5), pack)
+
+
+def test_hindi_tens_and_units_are_two_numbers() -> None:
+    assert values_of("दस आठ") == ["10", "8"]

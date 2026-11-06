@@ -41,12 +41,12 @@ _SPACES = re.compile(r"\s+")
 _ZERO_WIDTH = re.compile("[\u200b-\u200d\ufeff]")
 # Thousands grouping only, Western (800,000) or Indian (8,00,000), never lists like "1,2,3".
 _GROUPED_NUMBER = re.compile(r"(?<![\d,])\d{1,3}(?:,\d{2,3})*,\d{3}(?!\d|,\d)")
-_ZERO_MINUTES = re.compile(r"(?<=\d):00(?![\d:])")
+_ZERO_MINUTES = re.compile(r"(?<=\d): ?00(?![\d:])")
 _DOTTED_DATE = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?![\d.])")
 _DIGIT_LETTER = re.compile(rf"(?<=\d)(?={_LETTER})|(?<={_LETTER})(?=\d)")
 _DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")
 _NUMBER = re.compile(r"\d+(?:\.\d+)?")
-_CLOCK_COLON = re.compile(r"(?<=\d):(?=\d)")
+_CLOCK = re.compile(r"(?<![\d:])(\d{1,2}): ?(\d{2})(?![\d:])")
 _LATIN = re.compile(r"[a-z]", re.IGNORECASE)
 _DECIMAL_PLACEHOLDER = "\ue000"  # private-use character, never in real text
 _WHISPER_BRACKETS = re.compile(r"[<\[][^>\]]*[>\]]")
@@ -118,19 +118,25 @@ def verbalize(text: str, pack: LanguagePack) -> str:
     punctuation is kept so the engine can phrase the sentence. Latin letters
     are left as they are; see ``has_latin``.
     """
-    text = _CLOCK_COLON.sub(" ", _written_forms(text, pack))
+    text = _written_forms(text, pack)
+    # Clock times are read without leading zeros: "07:19" is "saat unnees".
+    text = _CLOCK.sub(lambda m: f"{int(m.group(1))} {int(m.group(2))}", text)
     return _SPACES.sub(" ", _NUMBER.sub(lambda m: _spoken(m, pack), text)).strip()
 
 
 def _spoken(match: re.Match[str], pack: LanguagePack) -> str:
     digits = match.group()
-    if len(digits) > 1 and digits.startswith("0") and "." not in digits:
+    if digits.startswith("0") and digits.strip("0") and "." not in digits:
         words = " ".join(spell_number(Fraction(d), pack) for d in digits)
     else:
         words = spell_number(Fraction(digits), pack)
-    rest = match.string[match.end() :]
-    glued = rest[:1].isalpha() and not rest.startswith(pack.ordinal_suffixes)
-    return f"{words} " if glued else words  # "35mm" -> "35 mm", "15vin" stays one word
+    before = match.string[match.start() - 1 : match.start()]
+    after = match.string[match.end() :]
+    is_ordinal = pack.fold(after[:4]).startswith(pack.ordinal_suffixes)
+    # Keep a number apart from glued letters ("35mm", "H5N1"), except an ordinal suffix.
+    lead = " " if before.isalpha() or unicodedata.category(before[:1] or " ")[0] == "M" else ""
+    trail = " " if after[:1].isalpha() and not is_ordinal else ""
+    return f"{lead}{words}{trail}"
 
 
 def has_latin(text: str) -> bool:

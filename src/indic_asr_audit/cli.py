@@ -2,9 +2,11 @@
 
 import argparse
 import logging
+from collections import Counter
 from pathlib import Path
 
 from indic_asr_audit import __version__
+from indic_asr_audit.data import Utterance
 
 DEFAULT_DATA_DIR = Path("data")
 DEFAULT_SYSTEMS = Path("configs/systems.toml")
@@ -94,6 +96,8 @@ def _synthesize(args: argparse.Namespace) -> None:
     for condition, synthetic in manifests.items():
         write_manifest(_manifest_path(f"{base}-{condition}"), synthetic)
         print(f"{base}-{condition}: {len(synthetic)} utterances")
+    if not records:
+        raise SystemExit("Nothing to synthesise: the manifest is empty")
     log = pd.DataFrame(records)
     log["reason"] = [p[0].split(" ")[0] if p else "" for p in log["problems"]]
     summary = log.groupby(["has_number", "split", "status", "reason"]).size().rename("sentences")
@@ -117,20 +121,27 @@ def _complete(dataset: str, names: list[str], ids: list[str]) -> dict[str, dict[
     return found
 
 
+def real_ceiling_sentences(utterances: list[Utterance]) -> set[str]:
+    """Sentence ids with at least two real recordings."""
+    counts = Counter(u.sentence_id for u in utterances)
+    return {sentence for sentence, n in counts.items() if n >= 2}
+
+
 def _rq2(args: argparse.Namespace) -> None:
     from indic_asr_audit.analysis import write_tables
     from indic_asr_audit.asr import load_systems
     from indic_asr_audit.data import read_manifest
     from indic_asr_audit.languages import get_language
     from indic_asr_audit.plots import plot_rq2
-    from indic_asr_audit.rq2 import real_ceiling, rq2_tables
-    from indic_asr_audit.synth import related_systems
+    from indic_asr_audit.rq2 import real_ceiling, rq2_tables, selection_table
+    from indic_asr_audit.synth import engine_of, related_systems
 
     pack = get_language(args.lang)
     systems = load_systems(args.systems)
     excluded = {s: set(systems[s].exclude_splits) for s in systems}
     real_utts = read_manifest(_manifest_path(args.dataset))
     real_all = _complete(args.dataset, list(systems), [u.id for u in real_utts])
+    ceiling_utts = real_ceiling_sentences(real_utts)
     write_tables(real_ceiling(real_utts, real_all, pack, excluded), RESULTS / "rq2" / "ceiling")
     for name in args.synthetic:
         synthetic = read_manifest(_manifest_path(name))
@@ -139,9 +150,14 @@ def _rq2(args: argparse.Namespace) -> None:
         synth = _complete(name, list(systems), ids)
         if not set(real) & set(synth):
             raise SystemExit(f"No system has transcripts for both {args.dataset} and {name}")
-        engine = name.removeprefix(f"{args.dataset}-").rsplit("-", 1)[0].removesuffix("-numeric")
-        related = related_systems(args.tts, engine)
+        related = related_systems(args.tts, engine_of(args.tts, name, args.dataset))
         tables = rq2_tables(synthetic, real, synth, pack, excluded, related)
+        same = [u for u in synthetic if u.sentence_id in ceiling_utts]
+        tables |= {
+            f"same_sentences_as_ceiling_{k}": v
+            for k, v in rq2_tables(same, real, synth, pack, excluded, related).items()
+        }
+        tables["selection"] = selection_table(real_utts, set(ids), real_all, pack, excluded)
         out_dir = RESULTS / "rq2" / name
         write_tables(tables, out_dir)
         if not tables["gap"].empty:

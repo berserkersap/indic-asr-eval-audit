@@ -44,7 +44,7 @@ from indic_asr_audit.normalize import has_latin, verbalize
 Condition = Literal["clean", "telephony"]
 CONDITIONS: tuple[Condition, ...] = ("clean", "telephony")
 # Bump when verbalize() changes what is spoken, so old clips are not reused.
-VERBALIZER_VERSION = 2
+VERBALIZER_VERSION = 3
 
 
 class TTSEngine(Protocol):
@@ -212,15 +212,20 @@ class CheckLimits:
 
 
 def speech_seconds(audio: Audio, threshold_db: float = -40.0) -> float:
-    """Time from the first to the last 20 ms frame within 40 dB of the loudest."""
+    """Time from the first to the last 20 ms frame within 40 dB of a loud frame.
+
+    "Loud" is the 95th percentile of frame energy, so a single click does not
+    set the reference and trim real speech.
+    """
     frame = SAMPLE_RATE // 50
     frames = len(audio) // frame
     if frames == 0:
         return 0.0
     energy = np.sqrt(np.mean(audio[: frames * frame].reshape(frames, frame) ** 2, axis=1))
-    if not energy.max():
+    reference = float(np.percentile(energy, 95))
+    if not reference:
         return 0.0
-    loud = np.flatnonzero(energy >= energy.max() * 10 ** (threshold_db / 20))
+    loud = np.flatnonzero(energy >= reference * 10 ** (threshold_db / 20))
     return float(loud[-1] - loud[0] + 1) * frame / SAMPLE_RATE
 
 
@@ -279,7 +284,8 @@ def build_graph(
 
     def verbalize_node(state: ClipState) -> ClipState:
         spoken = verbalize(state["utterance"].text, pack)
-        return {"spoken": spoken, "attempt": 0, "problems": ["latin text"] * has_latin(spoken)}
+        problems = ["latin text"] if has_latin(spoken) else []
+        return {"spoken": spoken, "attempt": 0, "problems": problems}
 
     def synthesize_node(state: ClipState) -> ClipState:
         first = first_voice(state["utterance"].sentence_id, len(engine.voices))
@@ -377,7 +383,14 @@ def synthesize_manifest(
         first_take.setdefault(utt.sentence_id, utt)
     manifests: dict[Condition, list[Utterance]] = {c: [] for c in conditions}
     for utt in first_take.values():
-        if utt.id not in log:
+        record = log.get(utt.id)
+        if (
+            record
+            and record["status"] == "saved"
+            and not all((out_dir / c / f"{utt.id}.wav").exists() for c in conditions)
+        ):
+            record = None  # a saved clip was deleted: make it again
+        if record is None:
             real_seconds = speech_seconds(load_audio(data_dir / utt.audio))
             final = graph.invoke({"utterance": utt, "real_seconds": real_seconds})
             log[utt.id] = {
@@ -421,3 +434,15 @@ def related_systems(path: Path, name: str) -> set[str]:
 
     with path.open("rb") as f:
         return set(tomllib.load(f)[name].get("related_systems", []))
+
+
+def engine_of(path: Path, manifest: str, dataset: str) -> str:
+    """The TTS engine in a synthetic manifest name such as "<dataset>-mms-tts-clean"."""
+    import tomllib
+
+    with path.open("rb") as f:
+        engines = tomllib.load(f)
+    matches = [e for e in engines if manifest.startswith(f"{dataset}-{e}-")]
+    if not matches:
+        raise ValueError(f"{manifest}: no engine from {path} matches")
+    return max(matches, key=len)

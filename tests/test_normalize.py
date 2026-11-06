@@ -1,5 +1,7 @@
+import json
 import random
 import unicodedata
+from pathlib import Path
 
 import pytest
 
@@ -127,3 +129,27 @@ def test_verbalize_symbols_leading_zeros_and_units(text: str, expected: str) -> 
 )
 def test_has_latin_after_verbalize(text: str, latin: bool) -> None:
     assert has_latin(verbalize(text, HINDI)) is latin
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("07:19 बजे", "सात उन्नीस बजे"),
+        ("10:08 पर", "दस आठ पर"),
+        ("10: 00-11: 00", "दस-ग्यारह"),
+        ("एच5एन1", "एच पांच एन एक"),
+        ("37वाँ", "सैंतीसवाँ"),
+        ("स्कोर 26 - 00", "स्कोर छब्बीस - शून्य"),
+    ],
+)
+def test_verbalize_clock_times_glued_letters_and_zeros(text: str, expected: str) -> None:
+    assert verbalize(text, HINDI) == expected
+
+
+def test_verbalized_corpus_scores_like_its_references() -> None:
+    manifest = Path(__file__).parents[1] / "manifests" / "fleurs_hi_in.jsonl"
+    texts = {json.loads(line)["text"] for line in manifest.read_text(encoding="utf-8").splitlines()}
+    for text in texts:
+        spoken = verbalize(text, HINDI)
+        if not has_latin(spoken):
+            assert normalize(spoken, HINDI, Level.NUMBERS) == normalize(text, HINDI, Level.NUMBERS)
