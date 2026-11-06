@@ -42,8 +42,9 @@ cluster-bootstrap intervals:
   intervals are wide, but where numbers matter, WER alone would pick the wrong
   one of these two systems.
 - **WER can barely see numbers.** Numbers are 6% of the reference words, so
-  even missing half of them costs MMS only 4.0 WER points (word errors that
-  involve a word with a digit). For the open systems, normalising spelling and numbers changes WER by only 1 to 3 points.
+  MMS's 67 missed numbers account for only 4.0 of its WER points (word errors
+  that involve a word with a digit). For the open systems, normalising
+  spelling and numbers changes WER by only 1 to 3 points.
 - **At least three quarters of the gap between Saaras v4's two output modes
   is how numbers are written.** One model id (`saaras:v4`) on the same audio,
   with only its `mode` setting changed, scores 5.9
@@ -68,7 +69,7 @@ cluster-bootstrap intervals:
   change the ranking. For Saaras it is smaller: on the held-out set +0.9
   [-2.4, +3.5] and +1.6 [-2.0, +4.5] points from `whisper` to `basic` (not
   significant), and 1 to 3 points across all subsets (significant on the
-  controls).
+  controls and, for `verbatim`, on all utterances with numbers).
 - **A synthetic test set from MMS-TTS keeps the order of the systems but not
   their error level, and may be harder still on numbers.** On the 49 held-out
   sentences with numbers that MMS-TTS could voice, WER rises by 7 to 12 points
@@ -111,7 +112,8 @@ Pairs of systems that WER (at the `numbers` level) and the numeric value error
 put in opposite order. A reversal is significant when the paired bootstrap
 intervals of both differences exclude zero; the two significant pairs share
 MMS, so they are not independent. No correction is made for testing several
-pairs, but the two numeric-error intervals clear zero by at least 11 points.
+pairs, but the two numeric-error intervals clear zero by about 11 points or
+more.
 
 <!-- rq1-disagreement -->
 | subset | systems | Kendall tau | reversed, significant | reversed, not significant |
@@ -162,9 +164,9 @@ Only these rankings change between normalisation levels; in every other subset a
 | without numbers | whisper vs numbers | 7 | 0.90 | `saaras-v4-transcribe` vs `saaras-v4-verbatim` |
 <!-- /rq1-ranks -->
 
-Same model id, same audio, two output conventions: WER of Saaras v4 in `verbatim`
-mode (numbers as spoken words) minus `transcribe` mode (numbers as digits),
-in percentage points, at each normalisation level:
+Same model id, same audio, two output conventions: WER of Saaras v4 in
+`verbatim` mode (numbers as spoken words) minus `transcribe` mode (numbers as
+digits), in percentage points, at each normalisation level:
 
 <!-- rq1-convention -->
 | level | held-out, with numbers | all with numbers (no MMS) | without numbers |
@@ -297,13 +299,14 @@ Reading these tables:
 
 - Synthetic speech is harder than real speech for the three strongest
   systems (MMS-1B, Whisper large-v3 and large-v3-turbo); telephony coding adds
-  about 4 more points at most. For scale, a second real recording of the 26
-  held-out sentences that have one changes their WER by -2.3 to -3.7 points
-  (intervals include zero), while MMS-TTS on 22 of those sentences raises it
-  by 6 to 13 points; on those 22, MMS-1B's rise is not significant (+6.1
-  [-2.2, +13.7] clean, +7.2 [-0.6, +14.5] telephony). For Whisper small and medium the intervals are wide
-  (about ±15 to ±27 points), probably because of their repetition loops (see
-  Limitations).
+  at most about 4 more points (large-v3-turbo, +7.3 to +11.5). For scale, on
+  the 26 held-out sentences that have a second real recording, that recording
+  changes the WER of these three systems by -2.3 to -3.7 points (intervals
+  include zero), while MMS-TTS on 22 of those sentences raises it by 6 to 13
+  points; on those 22, MMS-1B's rise is not significant (+6.1 [-2.2, +13.7]
+  clean, +7.2 [-0.6, +14.5] telephony). For Whisper small and medium the
+  intervals are wide (about ±15 to ±27 points), probably because of their
+  repetition loops (see Limitations).
 - The numeric value error rises more than WER does, which suggests that
   MMS-TTS speaks number words in a way the systems find especially hard. This
   is not established: the change has no interval, it rests on 79 numbers, and
