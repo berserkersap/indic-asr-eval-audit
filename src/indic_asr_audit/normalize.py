@@ -19,9 +19,10 @@ the zero minutes, and "15.08.1947" is three numbers, not a decimal.
 import re
 import unicodedata
 from enum import StrEnum
+from fractions import Fraction
 
 from indic_asr_audit.languages.base import LanguagePack
-from indic_asr_audit.numbers import replace_numbers, split_ordinals
+from indic_asr_audit.numbers import replace_numbers, spell_number, split_ordinals
 
 
 class Level(StrEnum):
@@ -44,6 +45,9 @@ _ZERO_MINUTES = re.compile(r"(?<=\d):00(?![\d:])")
 _DOTTED_DATE = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?![\d.])")
 _DIGIT_LETTER = re.compile(rf"(?<=\d)(?={_LETTER})|(?<={_LETTER})(?=\d)")
 _DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")
+_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+_CLOCK_COLON = re.compile(r"(?<=\d):(?=\d)")
+_DIGIT_LATIN = re.compile(r"(?<=\d)(?=[a-z])", re.IGNORECASE)
 _DECIMAL_PLACEHOLDER = "\ue000"  # private-use character, never in real text
 _WHISPER_BRACKETS = re.compile(r"[<\[][^>\]]*[>\]]")
 _WHISPER_PARENS = re.compile(r"\(([^)]+?)\)")
@@ -64,8 +68,9 @@ def whisper_basic(text: str) -> str:
     return _SPACES.sub(" ", text.lower()).strip()
 
 
-def _basic(text: str, pack: LanguagePack) -> str:
-    text = _ZERO_WIDTH.sub("", unicodedata.normalize("NFC", text)).lower()
+def _written_forms(text: str, pack: LanguagePack) -> str:
+    """Rewrite written forms the way they are read; shared by scoring and TTS."""
+    text = _ZERO_WIDTH.sub("", unicodedata.normalize("NFC", text))
     if pack.native_digits:
         text = text.translate(str.maketrans(pack.native_digits, "0123456789"))
     text = _GROUPED_NUMBER.sub(lambda m: m.group().replace(",", ""), text)
@@ -74,7 +79,11 @@ def _basic(text: str, pack: LanguagePack) -> str:
     for symbol, word in {**pack.prefix_symbols, **pack.symbols}.items():
         text = text.replace(symbol, f" {word} ")
     text = _ZERO_MINUTES.sub("", text)
-    text = _DOTTED_DATE.sub(r"\1 \2 \3", text)
+    return _DOTTED_DATE.sub(r"\1 \2 \3", text)
+
+
+def _basic(text: str, pack: LanguagePack) -> str:
+    text = _written_forms(text.lower(), pack)
     text = _DIGIT_LETTER.sub(" ", text)
     text = _DECIMAL_POINT.sub(_DECIMAL_PLACEHOLDER, text)
     text = "".join(" " if unicodedata.category(char)[0] in "PS" else char for char in text)
@@ -98,3 +107,17 @@ def normalize(text: str, pack: LanguagePack, level: Level) -> str:
 def numeric_tokens(text: str, pack: LanguagePack) -> list[str]:
     """Tokens ready for number parsing: spelling-normalised, ordinals split."""
     return split_ordinals(normalize(text, pack, Level.SPELLING).split(), pack)
+
+
+def verbalize(text: str, pack: LanguagePack) -> str:
+    """Rewrite text the way it is read aloud, for TTS engines that need words.
+
+    Numbers are spelled out ("53" becomes "tirepan", "15vin" becomes
+    "pandrahvin"), currency and percent signs become words, and punctuation
+    is kept so the engine can phrase the sentence.
+    """
+    text = _written_forms(text, pack)
+    text = _DIGIT_LATIN.sub(" ", text)
+    text = _CLOCK_COLON.sub(" ", text)
+    text = _NUMBER.sub(lambda m: spell_number(Fraction(m.group()), pack), text)
+    return _SPACES.sub(" ", text).strip()

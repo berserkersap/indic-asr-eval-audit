@@ -196,4 +196,8 @@ HINDI = LanguagePack(
         # Chandrabindu and anusvara are used interchangeably (पाँच / पांच).
         (_CHANDRABINDU, _NASAL),
     ),
+    spoken_units=tuple(_HINDI_UNITS[value][0] for value in range(100)),
+    spoken_scales=((10_000_000, "करोड़"), (100_000, "लाख"), (1_000, "हज़ार"), (100, "सौ")),
+    spoken_point="दशमलव",
+    years_as_hundreds=True,
 )

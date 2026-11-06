@@ -44,6 +44,12 @@ class LanguagePack:
             e.g. "₹" in "₹500", read "500 rupaye".
         spelling_folds: (regex, replacement) pairs that merge accepted
             spelling variants, applied after Unicode NFC.
+        spoken_units: The standard word for each value 0 to 99, used to
+            spell numbers out for TTS. Empty if spelling is not supported.
+        spoken_scales: (value, word) pairs from the largest scale down.
+        spoken_point: Word read for the decimal point.
+        years_as_hundreds: Read 1100-1999 as hundreds ("nineteen hundred
+            ninety"), as Hindi does.
     """
 
     code: str
@@ -58,10 +64,16 @@ class LanguagePack:
     symbols: Mapping[str, str] = field(default_factory=dict)
     prefix_symbols: Mapping[str, str] = field(default_factory=dict)
     spelling_folds: tuple[tuple[str, str], ...] = ()
+    spoken_units: tuple[str, ...] = ()
+    spoken_scales: tuple[tuple[int, str], ...] = ()
+    spoken_point: str = ""
+    years_as_hundreds: bool = False
 
     def __post_init__(self) -> None:
         if self.native_digits and len(self.native_digits) != 10:
             raise ValueError(f"{self.code}: native_digits must have 10 characters")
+        if self.spoken_units and len(self.spoken_units) != 100:
+            raise ValueError(f"{self.code}: spoken_units must have 100 entries")
         bad_units = {w: v for w, v in self.units.items() if not 0 <= v < 100}
         if bad_units:
             raise ValueError(f"{self.code}: units must be in [0, 100): {bad_units}")

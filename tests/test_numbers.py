@@ -1,16 +1,18 @@
 import itertools
 import random
+from fractions import Fraction
 
 import pytest
 
 from indic_asr_audit.languages import get_language
+from indic_asr_audit.languages.base import LanguagePack
 from indic_asr_audit.normalize import Level, normalize, numeric_tokens
-from indic_asr_audit.numbers import find_numbers, format_value
+from indic_asr_audit.numbers import find_numbers, format_value, spell_number
 
 HINDI = get_language("hi")
 
 
-def values(text: str) -> list[str]:
+def values_of(text: str) -> list[str]:
     return [span.value for span in find_numbers(numeric_tokens(text, HINDI), HINDI)]
 
 
@@ -52,10 +54,11 @@ def values(text: str) -> list[str]:
         ("साढ़े", []),
         ("साढ़े साढ़े तीन", ["3.5"]),
         ("दशमलव", []),
+        ("सात हज़ार दशमलव दो पांच", ["7000.25"]),
     ],
 )
 def test_spoken_numbers(text: str, expected: list[str]) -> None:
-    assert values(text) == expected
+    assert values_of(text) == expected
 
 
 @pytest.mark.parametrize(
@@ -86,7 +89,7 @@ def test_spoken_numbers(text: str, expected: list[str]) -> None:
     ],
 )
 def test_written_numbers(text: str, expected: list[str]) -> None:
-    assert values(text) == expected
+    assert values_of(text) == expected
 
 
 def test_written_as_digits_flag() -> None:
@@ -109,8 +112,6 @@ def test_text_without_numbers_is_unchanged() -> None:
     [(5, 1, "5"), (5, 2, "2.5"), (7, 4, "1.75"), (1, 8, "0.125"), (-1, 4, "-0.25")],
 )
 def test_format_value(numerator: int, denominator: int, expected: str) -> None:
-    from fractions import Fraction
-
     assert format_value(Fraction(numerator, denominator)) == expected
 
 
@@ -123,3 +124,38 @@ def test_parser_never_fails_on_random_tokens() -> None:
         bounds = [(s.start, s.end) for s in spans]
         assert all(0 <= a < b <= len(tokens) for a, b in bounds)
         assert all(b <= c for (_, b), (c, _) in itertools.pairwise(bounds))
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (0, "शून्य"),
+        (53, "तिरेपन"),
+        (250, "दो सौ पचास"),
+        (1990, "उन्नीस सौ नब्बे"),
+        (2010, "दो हज़ार दस"),
+        (800000, "आठ लाख"),
+        (12500000, "एक करोड़ पच्चीस लाख"),
+    ],
+)
+def test_spell_number(value: int, expected: str) -> None:
+    assert spell_number(Fraction(value), HINDI) == expected
+
+
+def test_spell_decimal_reads_digits_after_the_point() -> None:
+    assert spell_number(Fraction("1.75"), HINDI) == "एक दशमलव सात पांच"
+
+
+def test_spelled_numbers_parse_back_to_the_same_value() -> None:
+    rng = random.Random(0)
+    values: list[float] = [*range(2200), *(rng.randrange(10**10) for _ in range(3000))]
+    values += [rng.randrange(10**4) + rng.choice([0.5, 0.25, 0.05]) for _ in range(300)]
+    for value in values:
+        spoken = spell_number(Fraction(str(value)), HINDI)
+        assert values_of(spoken) == [format_value(Fraction(str(value)))], spoken
+
+
+def test_spelling_needs_spoken_forms() -> None:
+    pack = LanguagePack(code="xx", name="Test", native_digits="", units={}, scales={})
+    with pytest.raises(ValueError, match="no spoken forms"):
+        spell_number(Fraction(5), pack)

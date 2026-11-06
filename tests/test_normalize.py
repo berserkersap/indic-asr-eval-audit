@@ -4,7 +4,7 @@ import unicodedata
 import pytest
 
 from indic_asr_audit.languages import get_language
-from indic_asr_audit.normalize import Level, normalize, whisper_basic
+from indic_asr_audit.normalize import Level, normalize, verbalize, whisper_basic
 
 HINDI = get_language("hi")
 
@@ -85,3 +85,25 @@ def test_ordinal_suffix_spellings_score_the_same() -> None:
     reference = normalize("15वीं सदी", HINDI, Level.NUMBERS)
     assert normalize("पंद्रहवी सदी", HINDI, Level.NUMBERS) == reference
     assert normalize("15 वी सदी", HINDI, Level.NUMBERS) == reference
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("इस साल 53 साल के.", "इस साल तिरेपन साल के."),
+        ("सेना के 800,000 सैनिक", "सेना के आठ लाख सैनिक"),
+        ("19वीं शताब्दी", "उन्नीसवीं शताब्दी"),
+        ("₹500 दिए, 35% लोग", "पांच सौ रुपये दिए, पैंतीस प्रतिशत लोग"),
+        ("सुबह 10:00 बजे", "सुबह दस बजे"),
+        ("फॉर्मेट 35mm है", "फॉर्मेट पैंतीस mm है"),
+        ("15.08.1947 को", "पंद्रह आठ उन्नीस सौ सैंतालीस को"),
+    ],
+)
+def test_verbalize(text: str, expected: str) -> None:
+    assert verbalize(text, HINDI) == expected
+
+
+def test_verbalized_text_scores_like_the_reference() -> None:
+    text = "1990 में 2.5 लाख लोग, 15वीं बार"
+    spoken = verbalize(text, HINDI)
+    assert normalize(spoken, HINDI, Level.NUMBERS) == normalize(text, HINDI, Level.NUMBERS)

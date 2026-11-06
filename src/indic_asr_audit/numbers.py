@@ -142,7 +142,8 @@ class _Builder:
         return True
 
     def add_point(self) -> bool:
-        if not self.open_unit or self.decimal is not None or self.current.denominator != 1:
+        whole = (self.total + self.current).denominator == 1
+        if not self.has_value or self.offset is not None or self.decimal is not None or not whole:
             return False
         self.decimal = ""
         return True
@@ -237,6 +238,37 @@ def split_ordinals(tokens: list[str], pack: LanguagePack) -> list[str]:
         else:
             out.append(token)
     return out
+
+
+def spell_number(value: Fraction, pack: LanguagePack) -> str:
+    """Spell a non-negative number in words, the way it is usually read aloud."""
+    if not pack.spoken_units:
+        raise ValueError(f"{pack.code}: no spoken forms to spell numbers with")
+    if value < 0:
+        raise ValueError("negative numbers are not supported")
+    words = _spell_integer(int(value), pack)
+    if value.denominator != 1:
+        decimals = format_value(value).split(".")[1]
+        words += [pack.spoken_point, *(pack.spoken_units[int(d)] for d in decimals)]
+    return " ".join(words)
+
+
+def _spell_integer(n: int, pack: LanguagePack) -> list[str]:
+    units = pack.spoken_units
+    if n < _HUNDRED:
+        return [units[n]]
+    hundred = dict(pack.spoken_scales)[_HUNDRED]
+    if pack.years_as_hundreds and 1100 <= n <= 1999:
+        rest = [units[n % _HUNDRED]] if n % _HUNDRED else []
+        return [units[n // _HUNDRED], hundred, *rest]
+    words: list[str] = []
+    for scale, word in pack.spoken_scales:
+        if n >= scale:
+            count, n = divmod(n, scale)
+            words += [*_spell_integer(count, pack), word]
+    if n:
+        words.append(units[n])
+    return words
 
 
 def replace_numbers(tokens: list[str], pack: LanguagePack) -> list[str]:
