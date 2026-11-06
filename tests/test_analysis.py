@@ -120,3 +120,43 @@ def test_wer_and_numeric_error_can_rank_systems_in_opposite_orders() -> None:
     row = tables["wer_vs_numeric"].set_index("subset").loc["numeric"]
     assert row["pairs_reversed"] == 1
     assert row["kendall_tau"] == -1.0
+
+
+def test_a_reversal_is_significant_only_if_both_intervals_exclude_zero() -> None:
+    from indic_asr_audit.analysis import metric_disagreement
+    from indic_asr_audit.metrics import Counts
+
+    clusters = [f"s{i}" for i in range(20)]
+    # a: best WER, misses every number. b: worst WER, misses none. Both gaps are
+    # the same in every sentence, so both intervals exclude zero.
+    # c: between them on both metrics, but its WER lead over a flips sign from
+    # sentence to sentence, so the a/c WER interval includes zero.
+    wer = {
+        "a": [Counts(1, 10)] * 20,
+        "b": [Counts(3, 10)] * 20,
+        "c": [Counts(0 if i % 2 else 3, 10) for i in range(20)],
+    }
+    numeric = {
+        "a": [Counts(1, 1)] * 20,
+        "b": [Counts(0, 1)] * 20,
+        "c": [Counts(i % 2, 1) for i in range(20)],
+    }
+    row = metric_disagreement(wer, numeric, clusters)
+    assert set(str(row["reversed"]).split()) == {"a/b", "a/c", "b/c"}
+    assert set(str(row["significant"]).split()) == {"a/b", "b/c"}
+    assert row["significant_reversals"] == 2
+
+
+def test_diagnostics_count_long_outputs_and_number_word_errors() -> None:
+    hyps = {
+        "u0": "उसने 53 किताबें खरीदीं " * 3,  # three times the reference: a loop
+        "u1": "कुल 8 0 0 सैनिक थे",  # one garbled number: three errors with digits
+        "u2": "वह घर गया",
+        "u3": "यह 15वीं सदी की बात है",
+    }
+    tables = rq1_tables(UTTERANCES, {"a": hyps}, HINDI, {})
+    row = tables["diagnostics"].set_index("subset").loc["numeric"]
+    assert row["long_outputs"] == 1
+    assert row["wer_without_long"] < row["wer"]
+    # u1: three errors with digits; u0: the loop repeats "53" twice
+    assert row["wer_from_number_words"] * row["reference_words"] == pytest.approx(5)

@@ -33,6 +33,35 @@ def word_counts(reference: str, hypothesis: str) -> Counts:
     return Counts(errors=out.substitutions + out.deletions + out.insertions, total=len(ref))
 
 
+def _has_digit(word: str) -> bool:
+    return any(ch.isdigit() for ch in word)
+
+
+def number_word_errors(reference: str, hypothesis: str) -> int:
+    """Word errors in the alignment that involve a word containing a digit.
+
+    Counts substitutions, deletions and insertions where the reference or the
+    hypothesis word has a digit. A garbled number can cost several: "2 ी 0"
+    for "20" is one substitution and two insertions, two of them with digits.
+    Use on strings normalised at the numbers level, where numbers are digits.
+    """
+    ref, hyp = reference.split(), hypothesis.split()
+    if not ref:
+        return sum(map(_has_digit, hyp))
+    errors = 0
+    for chunk in jiwer.process_words(" ".join(ref), " ".join(hyp)).alignments[0]:
+        ref_words = ref[chunk.ref_start_idx : chunk.ref_end_idx]
+        hyp_words = hyp[chunk.hyp_start_idx : chunk.hyp_end_idx]
+        if chunk.type == "substitute":
+            pairs = zip(ref_words, hyp_words, strict=True)
+            errors += sum(_has_digit(r) or _has_digit(h) for r, h in pairs)
+        elif chunk.type == "delete":
+            errors += sum(map(_has_digit, ref_words))
+        elif chunk.type == "insert":
+            errors += sum(map(_has_digit, hyp_words))
+    return errors
+
+
 def char_counts(reference: str, hypothesis: str) -> Counts:
     """Character edit distance between two normalised strings.
 
@@ -63,7 +92,8 @@ def numeric_counts(
 
     With ``lenient``, a missed number still counts as found when the
     hypothesis has a misspelled number word for it, such as "pandra" for
-    "pandrah" (see ``spelled_nearby``). Wrong digits are never forgiven.
+    "pandrah" (see ``_spelled_run``); each such run forgives one number.
+    Wrong digits are never forgiven.
     """
     ref_spans = find_numbers(numeric_tokens(reference, pack), pack)
     wanted = Counter(s.value for s in ref_spans if s.written_as_digits)
@@ -72,7 +102,12 @@ def numeric_counts(
     missed = wanted - found
     if lenient:
         words = _words(hypothesis, pack)
-        missed = Counter({v: n for v, n in missed.items() if not spelled_nearby(v, words, pack)})
+        taken: set[int] = set()
+        for value in list(missed.elements()):
+            run = _spelled_run(value, words, pack, taken)
+            if run is not None:
+                taken.update(run)
+                missed[value] -= 1
     return Counts(errors=sum(missed.values()), total=sum(wanted.values()))
 
 
@@ -84,26 +119,32 @@ def _words(text: str, pack: LanguagePack) -> list[str]:
     return [pack.canonical_word(w) for w in cleaned.split()]
 
 
-def spelled_nearby(value: str, tokens: list[str], pack: LanguagePack, cutoff: float = 0.25) -> bool:
-    """Whether some run of word tokens is a near spelling of the value in words.
+def _spelled_run(
+    value: str, tokens: list[str], pack: LanguagePack, taken: set[int], cutoff: float = 0.25
+) -> range | None:
+    """The first free run of word tokens that is a near spelling of the value in words.
 
     The run must have as many words as the standard spelling, contain no
-    digits, not itself read as a different number, and be within ``cutoff``
-    normalised character edit distance of the spelling. This forgives
-    "pandra" for "pandrah", but not "1093" for 1963, "7ttar" for 70, or
-    "taintees" (33) for "paintees" (35).
+    digits, use no token in ``taken``, not overlap any word that already reads
+    as a number (exact readings are matched before this, and a different
+    value is a different number), and be within ``cutoff`` normalised
+    character edit distance of the spelling. This forgives "pandra" for
+    "pandrah", but not "1093" for 1963, "7ttar" for 70, or "taintees" (33)
+    for "paintees" (35). A slip inside a multi-word number ("unnees so assi"
+    for 1980) is not forgiven, because its other words read as numbers.
     """
     from rapidfuzz.distance import Levenshtein
 
     spelled = pack.canonical_word(spell_number(Fraction(value), pack))
     width = len(spelled.split())
-    other_numbers = [s for s in find_numbers(tokens, pack) if s.value != value]
+    numbers = find_numbers(tokens, pack)
     for start in range(len(tokens) - width + 1):
-        run = tokens[start : start + width]
-        if any(ch.isdigit() for word in run for ch in word):
+        run = range(start, start + width)
+        words = [tokens[i] for i in run]
+        if taken.intersection(run) or any(ch.isdigit() for word in words for ch in word):
             continue
-        if any(s.start < start + width and start < s.end for s in other_numbers):
-            continue  # part of a number that reads as another value
-        if Levenshtein.normalized_distance(" ".join(run), spelled) <= cutoff:
-            return True
-    return False
+        if any(s.start < run.stop and start < s.end for s in numbers):
+            continue
+        if Levenshtein.normalized_distance(" ".join(words), spelled) <= cutoff:
+            return run
+    return None

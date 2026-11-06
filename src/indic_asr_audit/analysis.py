@@ -20,7 +20,13 @@ from scipy.stats import kendalltau
 
 from indic_asr_audit.data import Utterance
 from indic_asr_audit.languages.base import LanguagePack
-from indic_asr_audit.metrics import Counts, char_counts, numeric_counts, word_counts
+from indic_asr_audit.metrics import (
+    Counts,
+    char_counts,
+    number_word_errors,
+    numeric_counts,
+    word_counts,
+)
 from indic_asr_audit.normalize import Level, normalize
 from indic_asr_audit.stats import bootstrap_rate, corpus_rate, paired_difference
 
@@ -126,10 +132,21 @@ def rq1_tables(
                 )
                 numeric_by_system[system] = numbers
             words = by_level[Level.NUMBERS].words
-            hyp_lengths = [
-                len(normalize(hyps[u.id], pack, Level.NUMBERS).split()) for u in subset_utts
+            pairs = [
+                (normalize(u.text, pack, Level.NUMBERS), normalize(hyps[u.id], pack, Level.NUMBERS))
+                for u in subset_utts
             ]
-            diagnostics.append(_diagnostics(system, subset, words, numbers, hyp_lengths, clusters))
+            diagnostics.append(
+                _diagnostics(
+                    system,
+                    subset,
+                    words,
+                    numbers,
+                    [len(hyp.split()) for _, hyp in pairs],
+                    [number_word_errors(ref, hyp) for ref, hyp in pairs],
+                    clusters,
+                )
+            )
             for before, after in itertools.pairwise(levels):
                 diff = paired_difference(by_level[after].words, by_level[before].words, clusters)
                 steps.append(
@@ -171,15 +188,15 @@ def _diagnostics(
     words: list[Counts],
     numbers: list[Counts],
     hyp_lengths: list[int],
+    number_errors: list[int],
     clusters: list[str],
 ) -> dict[str, object]:
     """Two checks on what drives a system's WER, at the numbers level.
 
     Long outputs: hypotheses more than twice as long as the reference, which
     for Whisper are repetition loops; WER is also given without them. Number
-    share: numbers as a share of reference words, and the most WER points
-    that missed numbers could account for (each missed number costs at most
-    one word error).
+    share: numbers as a share of reference words, and the WER points from
+    word errors that involve a word with a digit (``number_word_errors``).
     """
     long = [h > 2 * c.total for h, c in zip(hyp_lengths, words, strict=True)]
     kept = [c for c, is_long in zip(words, long, strict=True) if not is_long]
@@ -196,7 +213,7 @@ def _diagnostics(
         "reference_numbers": sum(c.total for c in numbers),
         "missed_numbers": sum(c.errors for c in numbers),
         "word_errors": sum(c.errors for c in words),
-        "max_wer_from_numbers": sum(c.errors for c in numbers) / ref_words if ref_words else 0.0,
+        "wer_from_number_words": sum(number_errors) / ref_words if ref_words else 0.0,
     }
 
 

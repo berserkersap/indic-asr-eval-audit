@@ -1,7 +1,13 @@
 import pytest
 
 from indic_asr_audit.languages import get_language
-from indic_asr_audit.metrics import Counts, char_counts, numeric_counts, word_counts
+from indic_asr_audit.metrics import (
+    Counts,
+    char_counts,
+    number_word_errors,
+    numeric_counts,
+    word_counts,
+)
 
 HINDI = get_language("hi")
 
@@ -51,6 +57,8 @@ def test_numeric_counts(reference: str, hypothesis: str, expected: Counts) -> No
         ("करीब 70 किलोमीटर", "करीब 7त्तर किलोमीटर", 1, 1),
         ("कुल 35 लोग", "कुल तैंतीस लोग", 1, 1),
         ("सन 1900 में", "सन उन्नीस सौ एक में", 1, 1),
+        ("5 और 5", "पांच और", 1, 1),  # one word forgives one number, not two
+        ("15 और 15", "पंद्रा और", 2, 1),
     ],
 )
 def test_lenient_numeric_error_forgives_misspelled_words_only(
@@ -58,3 +66,19 @@ def test_lenient_numeric_error_forgives_misspelled_words_only(
 ) -> None:
     assert numeric_counts(reference, hypothesis, HINDI).errors == strict
     assert numeric_counts(reference, hypothesis, HINDI, lenient=True).errors == lenient
+
+
+@pytest.mark.parametrize(
+    ("reference", "hypothesis", "expected"),
+    [
+        ("कुल 800 सैनिक", "कुल 800 सैनिक", 0),
+        ("कुल 800 सैनिक", "कुल सैनिक", 1),  # deletion
+        ("कुल 800 सैनिक", "कुल 8 0 0 सैनिक", 3),  # one substitution, two insertions
+        ("कुल 800 सैनिक", "कुल 800 सेनिक", 0),  # an error on another word
+        ("", "20", 1),
+    ],
+)
+def test_number_word_errors_count_every_error_on_a_digit_word(
+    reference: str, hypothesis: str, expected: int
+) -> None:
+    assert number_word_errors(reference, hypothesis) == expected
