@@ -5,7 +5,7 @@ come from the result files and are never typed by hand.
 """
 
 import itertools
-from collections.abc import Hashable, Mapping
+from collections.abc import Hashable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -168,6 +168,180 @@ def render_rq1(results_dir: Path, subset: str = "held_out_numeric") -> dict[str,
     if disagreement.exists():
         blocks["rq1-disagreement"] = disagreement_table(pd.read_csv(disagreement))
     return blocks
+
+
+def _read(path: Path) -> pd.DataFrame:
+    """A result table; write_tables leaves no file for an empty one."""
+    return pd.read_csv(path) if path.exists() else pd.DataFrame()
+
+
+def _points(estimate: float, low: float, high: float) -> str:
+    """A difference of rates and its interval, in percentage points."""
+    return f"{estimate * 100:+.1f} [{low * 100:+.1f}, {high * 100:+.1f}]"
+
+
+def synthetic_sets(rq2_dir: Path, dataset: str) -> dict[str, Path]:
+    """RQ2 result folders for one dataset, keyed by test set ("mms-tts-clean")."""
+    prefix = f"{dataset}-"
+    return {
+        path.name.removeprefix(prefix): path
+        for path in sorted(rq2_dir.glob(f"{prefix}*"))
+        if path.is_dir()
+    }
+
+
+def engine_of_set(name: str) -> str:
+    """The TTS engine of a test set: "mms-tts" for "mms-tts-clean"."""
+    return name.rpartition("-")[0]
+
+
+def rejection_line(summary: pd.DataFrame, engine: str) -> str:
+    """How many sentences one engine kept, and why it left out the rest."""
+    saved = int(summary.loc[summary["status"] == "saved", "sentences"].sum())
+    rejected = summary[summary["status"] == "rejected"].groupby("reason")["sentences"].sum()
+    reasons = {"latin": "with Latin letters", "duration": "failed the duration check"}
+    left_out = ", ".join(f"{n} {reasons.get(str(r), str(r))}" for r, n in rejected.items())
+    total = saved + int(rejected.sum())
+    return f"`{engine}`: {saved} of {total} sentences kept" + (
+        f"; left out: {left_out}." if left_out else "."
+    )
+
+
+def gap_table(gaps: Mapping[str, pd.DataFrame], subset: str) -> str:
+    """WER and numeric value error on real and synthetic audio, per test set and system."""
+    rows = []
+    for name, gap in gaps.items():
+        if gap.empty:
+            continue
+        for r in gap[gap["subset"] == subset].sort_values("wer_real").to_dict("records"):
+            rows.append(
+                {
+                    "test set": f"`{name}`",
+                    "system": f"`{r['system']}`",
+                    "n": r["n"],
+                    "WER real": f"{r['wer_real'] * 100:.1f}",
+                    "WER synthetic": f"{r['wer_synthetic'] * 100:.1f}",
+                    "change (points)": _points(r["wer_gap"], r["low"], r["high"]),
+                    "numeric error real": f"{r['numeric_error_real'] * 100:.1f}",
+                    "numeric error synthetic": f"{r['numeric_error_synthetic'] * 100:.1f}",
+                }
+            )
+    return _markdown(pd.DataFrame(rows))
+
+
+def _agreement_rows(
+    label: str, agreement: pd.DataFrame, gap: pd.DataFrame, subset: str
+) -> list[dict[str, object]]:
+    if agreement.empty or gap.empty or subset not in set(gap["subset"]):
+        return []
+    n = int(gap.loc[gap["subset"] == subset, "n"].max())
+    rows: list[dict[str, object]] = []
+    for r in agreement[agreement["subset"] == subset].to_dict("records"):
+        systems = str(r["n_systems"])
+        if r["systems"] == "unrelated":
+            systems += ", none from the TTS family"
+        rows.append(
+            {
+                "subset": SUBSET_NAMES.get(subset, subset),
+                "compared with real speech": label,
+                "sentences": n,
+                "systems": systems,
+                "Kendall tau": f"{r['kendall_tau']:.2f} [{r['low']:.2f}, {r['high']:.2f}]",
+                "pairs flipped": _pairs(r["flipped"]),
+                "significant flips": r["significant_flips"],
+            }
+        )
+    return rows
+
+
+def agreement_table(rq2_dir: Path, sets: Mapping[str, Path], subsets: Sequence[str]) -> str:
+    """Ranking agreement: a second real recording (the ceiling) and each synthetic set."""
+    ceiling = rq2_dir / "ceiling"
+    rows = []
+    for subset in subsets:
+        rows += _agreement_rows(
+            "second real recording",
+            _read(ceiling / "agreement.csv"),
+            _read(ceiling / "gap.csv"),
+            subset,
+        )
+        for name, path in sets.items():
+            for prefix, scope in (("same_sentences_as_ceiling_", "same sentences"), ("", "all")):
+                rows += _agreement_rows(
+                    f"`{name}`, {scope}",
+                    _read(path / f"{prefix}agreement.csv"),
+                    _read(path / f"{prefix}gap.csv"),
+                    subset,
+                )
+    return _markdown(pd.DataFrame(rows))
+
+
+def rho_table(rq2_dir: Path, sets: Mapping[str, Path], subsets: Sequence[str]) -> str:
+    """Median and range over systems of the per-utterance error correlation with real speech."""
+    sources = {"second real recording": rq2_dir / "ceiling" / "utterances.csv"} | {
+        f"`{name}`": path / "same_sentences_as_ceiling_utterances.csv"
+        for name, path in sets.items()
+    }
+    rows = []
+    for label, source in sources.items():
+        table = _read(source)
+        row: dict[str, str] = {"compared with real speech": label}
+        for subset in subsets:
+            rho = (
+                table.loc[table["subset"] == subset, "spearman_rho"].dropna()
+                if not table.empty
+                else pd.Series(dtype=float)
+            )
+            row[SUBSET_NAMES.get(subset, subset)] = (
+                f"{rho.median():.2f} ({rho.min():.2f} to {rho.max():.2f})" if len(rho) else "-"
+            )
+        rows.append(row)
+    return _markdown(pd.DataFrame(rows))
+
+
+def selection_markdown(selections: Mapping[str, pd.DataFrame]) -> str:
+    """Real-speech WER on the sentences each engine kept and left out."""
+    rows = []
+    for engine, table in selections.items():
+        for system, group in table.groupby("system", sort=False):
+            cells = {str(r["sentences"]): r for r in group.to_dict("records")}
+            row = {"engine": f"`{engine}`", "system": f"`{system}`"}
+            for label, name in (("kept", "kept"), ("rejected", "left out")):
+                r = cells.get(label)
+                row[f"WER on {name} (sentences)"] = (
+                    f"{r['wer'] * 100:.1f} ({r['n']})" if r is not None else "-"
+                )
+            rows.append(row)
+    return _markdown(pd.DataFrame(rows))
+
+
+def render_rq2(
+    results: Path,
+    dataset: str,
+    subset: str = "held_out_numeric",
+    agreement_subsets: Sequence[str] = ("held_out_numeric", "numeric"),
+) -> dict[str, str]:
+    """Markdown blocks for the README's RQ2 section; empty if RQ2 has not run."""
+    rq2_dir = results / "rq2"
+    sets = synthetic_sets(rq2_dir, dataset)
+    if not sets:
+        return {}
+    engines = list(dict.fromkeys(engine_of_set(name) for name in sets))
+    first_set = {e: next(p for n, p in sets.items() if engine_of_set(n) == e) for e in engines}
+    sizes = []
+    for engine in engines:
+        summary = results / "synth" / f"{dataset}-{engine}-summary.csv"
+        if summary.exists():
+            sizes.append(rejection_line(pd.read_csv(summary, keep_default_na=False), engine))
+    return {
+        "rq2-size": (NEWLINE * 2).join(sizes),
+        "rq2-gap": gap_table({n: _read(p / "gap.csv") for n, p in sets.items()}, subset),
+        "rq2-agreement": agreement_table(rq2_dir, sets, agreement_subsets),
+        "rq2-rho": rho_table(rq2_dir, sets, agreement_subsets),
+        "rq2-selection": selection_markdown(
+            {e: pd.read_csv(p / "selection.csv") for e, p in first_set.items()}
+        ),
+    }
 
 
 def fill_readme(readme: Path, blocks: dict[str, str]) -> None:

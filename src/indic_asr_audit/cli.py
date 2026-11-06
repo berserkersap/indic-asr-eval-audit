@@ -198,9 +198,11 @@ def _token_rate(args: argparse.Namespace) -> None:
 
 
 def _report(args: argparse.Namespace) -> None:
-    from indic_asr_audit.report import fill_readme, render_rq1
+    from indic_asr_audit.report import fill_readme, render_rq1, render_rq2
 
-    fill_readme(args.readme, render_rq1(Path("results") / "rq1" / args.dataset))
+    results = Path("results")
+    blocks = render_rq1(results / "rq1" / args.dataset) | render_rq2(results, args.dataset)
+    fill_readme(args.readme, blocks)
     print(f"Updated {args.readme}")
 
 

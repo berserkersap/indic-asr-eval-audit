@@ -3,7 +3,15 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from indic_asr_audit.report import disagreement_table, fill_readme, ranks_summary, wer_table
+from indic_asr_audit.report import (
+    disagreement_table,
+    engine_of_set,
+    fill_readme,
+    ranks_summary,
+    rejection_line,
+    render_rq2,
+    wer_table,
+)
 
 
 def test_fill_readme_replaces_only_marked_blocks(tmp_path: Path) -> None:
@@ -87,3 +95,102 @@ def test_write_tables_removes_the_file_of_an_empty_table(tmp_path: Path) -> None
     assert (tmp_path / "t.csv").read_bytes() == b"a\n1\n"
     write_tables({"t": pd.DataFrame()}, tmp_path)
     assert not (tmp_path / "t.csv").exists()
+
+
+def _csv(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_csv(path, index=False)
+
+
+def _gap(system: str, real: float, synthetic: float) -> dict[str, object]:
+    return {
+        "subset": "held_out_numeric",
+        "system": system,
+        "n": 3,
+        "wer_real": real,
+        "wer_synthetic": synthetic,
+        "wer_gap": synthetic - real,
+        "low": 0.0,
+        "high": 0.2,
+        "numeric_error_real": 0.1,
+        "numeric_error_synthetic": 0.3,
+    }
+
+
+def _agreement(systems: str, n: int) -> dict[str, object]:
+    return {
+        "subset": "held_out_numeric",
+        "systems": systems,
+        "n_systems": n,
+        "kendall_tau": 1.0,
+        "low": 0.8,
+        "high": 1.0,
+        "nan_resamples": 0,
+        "pairs_flipped": 0,
+        "significant_flips": 0,
+        "flipped": float("nan"),
+    }
+
+
+def test_engine_of_set_drops_the_condition() -> None:
+    assert engine_of_set("mms-tts-clean") == "mms-tts"
+    assert engine_of_set("bulbul-telephony") == "bulbul"
+
+
+def test_rejection_line_counts_kept_and_left_out() -> None:
+    summary = pd.DataFrame(
+        [
+            {"status": "saved", "reason": "", "sentences": 10},
+            {"status": "saved", "reason": "", "sentences": 5},
+            {"status": "rejected", "reason": "latin", "sentences": 3},
+            {"status": "rejected", "reason": "latin", "sentences": 1},
+            {"status": "rejected", "reason": "duration", "sentences": 2},
+        ]
+    )
+    line = rejection_line(summary, "mms-tts")
+    assert line.startswith("`mms-tts`: 15 of 21 sentences kept")
+    assert "4 with Latin letters" in line
+    assert "2 failed the duration check" in line
+
+
+def test_render_rq2_is_empty_before_rq2_has_run(tmp_path: Path) -> None:
+    assert render_rq2(tmp_path, "d") == {}
+
+
+def test_render_rq2_reads_every_synthetic_set(tmp_path: Path) -> None:
+    rq2 = tmp_path / "rq2"
+    _csv(rq2 / "ceiling" / "gap.csv", [_gap("a", 0.2, 0.2), _gap("b", 0.4, 0.4)])
+    _csv(rq2 / "ceiling" / "agreement.csv", [_agreement("all", 2)])
+    _csv(
+        rq2 / "ceiling" / "utterances.csv",
+        [{"subset": "held_out_numeric", "system": s, "spearman_rho": 0.5} for s in "ab"],
+    )
+    for condition in ("clean", "telephony"):
+        out = rq2 / f"d-tts-{condition}"
+        _csv(out / "gap.csv", [_gap("b", 0.4, 0.5), _gap("a", 0.2, 0.3)])
+        _csv(out / "agreement.csv", [_agreement("all", 2)])
+        # no same-sentence tables: write_tables leaves no file for an empty table
+        _csv(
+            out / "selection.csv",
+            [
+                {"system": "a", "sentences": "kept", "n": 4, "wer": 0.2},
+                {"system": "b", "sentences": "kept", "n": 4, "wer": 0.4},
+                {"system": "b", "sentences": "rejected", "n": 1, "wer": 0.6},
+            ],
+        )
+    blocks = render_rq2(tmp_path, "d", agreement_subsets=["held_out_numeric"])
+    assert blocks["rq2-size"] == ""
+    gap = blocks["rq2-gap"]
+    assert gap.index("`tts-clean` | `a`") < gap.index("`tts-clean` | `b`")
+    assert "`tts-telephony` | `a`" in gap
+    assert "+10.0 [+0.0, +20.0]" in gap
+    agreement = blocks["rq2-agreement"]
+    assert "second real recording | 3 | 2 | 1.00 [0.80, 1.00] | none | 0" in agreement
+    assert "`tts-clean`, all" in agreement
+    assert "same sentences" not in agreement
+    assert "| second real recording | 0.50 (0.50 to 0.50) |" in blocks["rq2-rho"]
+    assert "| `tts-clean` | - |" in blocks["rq2-rho"]
+    selection = blocks["rq2-selection"]
+    assert selection.count("`tts`") == 2
+    assert "| `a` | 20.0 (4) | - |" in selection
+    assert "| `b` | 40.0 (4) | 60.0 (1) |" in selection
