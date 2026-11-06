@@ -7,6 +7,7 @@ itself is downloaded again by ``prepare_fleurs``.
 
 import csv
 import json
+import logging
 import random
 import re
 import tarfile
@@ -23,6 +24,7 @@ FLEURS_SAMPLE_RATE = 16_000
 MAX_SECONDS = 30.0
 
 _HAS_DIGIT = re.compile(r"\d")
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -63,14 +65,12 @@ def read_manifest(path: Path) -> list[Utterance]:
         return [Utterance(**json.loads(line)) for line in f if line.strip()]
 
 
-def _fleurs_rows(raw_dir: Path, lang: str, split: str) -> Iterator[Utterance]:
+def _fleurs_rows(raw_dir: Path, lang: str, split: str) -> Iterator[tuple[Utterance, float]]:
     tsv = raw_dir / "data" / lang / f"{split}.tsv"
     with tsv.open(encoding="utf-8", newline="") as f:
         for row in csv.reader(f, delimiter="\t", quoting=csv.QUOTE_NONE):
             sentence_id, file_name, raw_text = row[0], row[1], row[2]
-            if int(row[5]) / FLEURS_SAMPLE_RATE >= MAX_SECONDS:
-                continue
-            yield Utterance(
+            utterance = Utterance(
                 id=Path(file_name).stem,
                 audio=f"audio/fleurs_{lang}/{file_name}",
                 text=raw_text,
@@ -79,6 +79,7 @@ def _fleurs_rows(raw_dir: Path, lang: str, split: str) -> Iterator[Utterance]:
                 split=split,
                 has_number=bool(_HAS_DIGIT.search(raw_text)),
             )
+            yield utterance, int(row[5]) / FLEURS_SAMPLE_RATE
 
 
 def select_fleurs(raw_dir: Path, lang: str, n_control: int, seed: int = 0) -> list[Utterance]:
@@ -89,9 +90,17 @@ def select_fleurs(raw_dir: Path, lang: str, n_control: int, seed: int = 0) -> li
     on FLEURS train; for those, results should be restricted to test and dev.
     Controls come from the test split.
     """
-    rows = [u for split in FLEURS_SPLITS for u in _fleurs_rows(raw_dir, lang, split)]
-    if len({u.id for u in rows}) != len(rows):
+    all_rows = [row for split in FLEURS_SPLITS for row in _fleurs_rows(raw_dir, lang, split)]
+    if len({u.id for u, _ in all_rows}) != len(all_rows):
         raise ValueError("FLEURS file names are not unique across splits")
+    rows = [u for u, seconds in all_rows if seconds < MAX_SECONDS]
+    too_long = [u for u, seconds in all_rows if seconds >= MAX_SECONDS]
+    logger.info(
+        "Dropped %d recordings of %.0f s or more (%d with numbers)",
+        len(too_long),
+        MAX_SECONDS,
+        sum(u.has_number for u in too_long),
+    )
     numeric = [u for u in rows if u.has_number]
     candidates = [u for u in rows if u.split == "test" and not u.has_number]
     control = random.Random(seed).sample(candidates, min(n_control, len(candidates)))
@@ -99,21 +108,32 @@ def select_fleurs(raw_dir: Path, lang: str, n_control: int, seed: int = 0) -> li
 
 
 def extract_audio(raw_dir: Path, lang: str, utterances: list[Utterance], data_dir: Path) -> None:
-    """Extract only the selected recordings from the FLEURS archives."""
-    wanted = {Path(u.audio).name: data_dir / u.audio for u in utterances}
+    """Extract only the selected recordings from the FLEURS archives.
+
+    Each file is written under a temporary name and renamed when complete, so
+    an interrupted run never leaves a truncated recording behind.
+    """
+    pending = {Path(u.audio).name: data_dir / u.audio for u in utterances}
+    pending = {name: path for name, path in pending.items() if not path.exists()}
     for split in FLEURS_SPLITS:
+        if not pending:
+            break
         archive = raw_dir / "data" / lang / "audio" / f"{split}.tar.gz"
         with tarfile.open(archive) as tar:
             for member in tar:
-                target = wanted.get(Path(member.name).name)
-                if target is None or target.exists() or not member.isfile():
-                    continue
-                source = tar.extractfile(member)
-                if source is None:
+                name = Path(member.name).name
+                target = pending.get(name)
+                source = tar.extractfile(member) if target and member.isfile() else None
+                if target is None or source is None:
                     continue
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(source.read())
-    missing = [p for p in wanted.values() if not p.exists()]
+                partial = target.with_suffix(target.suffix + ".part")
+                partial.write_bytes(source.read())
+                partial.replace(target)
+                del pending[name]
+                if not pending:
+                    break
+    missing = list(pending.values())
     if missing:
         raise FileNotFoundError(f"{len(missing)} recordings not found, e.g. {missing[0]}")
 

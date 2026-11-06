@@ -75,3 +75,21 @@ def test_excluded_split_removes_system_from_subset() -> None:
     scores = rq1_tables(UTTERANCES, TRANSCRIPTS, HINDI, {"words": {"train"}})["scores"]
     assert set(scores[scores["subset"] == "numeric"]["system"]) == {"digits"}
     assert set(scores[scores["subset"] == "held_out_numeric"]["system"]) == {"digits", "words"}
+
+
+def test_convention_gap_is_verbatim_minus_transcribe() -> None:
+    transcripts = {
+        "saaras-v4-transcribe": TRANSCRIPTS["digits"],
+        "saaras-v4-verbatim": TRANSCRIPTS["words"],
+    }
+    gap = rq1_tables(UTTERANCES, transcripts, HINDI, {})["convention"]
+    numeric = gap[gap["subset"] == "numeric"].set_index("level")["wer_gap"]
+    assert numeric["spelling"] > 0
+    assert numeric["numbers"] == 0
+
+
+def test_rank_table_lists_flipped_pairs() -> None:
+    transcripts = {**TRANSCRIPTS, "noisy": {**TRANSCRIPTS["digits"], "u0": "गलत गलत गलत"}}
+    ranks = rq1_tables(UTTERANCES, transcripts, HINDI, {})["ranks"]
+    row = ranks[(ranks["subset"] == "numeric") & (ranks["versus"] == "whisper vs numbers")]
+    assert int(row["n_systems"].iloc[0]) == 3

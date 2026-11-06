@@ -38,7 +38,7 @@ asr = [
     "sarvamai>=0.1.40",
     "soundfile>=0.13",
     "torch>=2.6",
-    "transformers>=4.50",
+    "transformers>=4.56",
 ]
 synth = [
     "langgraph>=1.0",

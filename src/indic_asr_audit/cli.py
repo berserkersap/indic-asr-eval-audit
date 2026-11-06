@@ -1,6 +1,7 @@
 """Command-line entry point."""
 
 import argparse
+import logging
 from pathlib import Path
 
 from indic_asr_audit import __version__
@@ -53,8 +54,13 @@ def _rq1(args: argparse.Namespace) -> None:
     transcripts = {}
     for name in systems:
         hyps = read_transcripts(Path("results") / "transcripts" / args.dataset / f"{name}.jsonl")
-        if all(u.id in hyps for u in utterances):
+        done = sum(u.id in hyps for u in utterances)
+        if done == len(utterances):
             transcripts[name] = hyps
+        else:
+            print(f"skipping {name}: {done}/{len(utterances)} utterances transcribed")
+    if not transcripts:
+        raise SystemExit("No system has complete transcripts; run `asr-audit transcribe` first.")
     out_dir = Path("results") / "rq1" / args.dataset
     tables = rq1_tables(
         utterances,
@@ -101,4 +107,5 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     """Run the CLI."""
     args = build_parser().parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     args.run(args)

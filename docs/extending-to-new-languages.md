@@ -36,8 +36,10 @@ checks that every value below 100 has a word, for every registered pack.
 
 The parser handles languages that build numbers the way Hindi does: a distinct
 word for each value below 100, then multipliers in the Indian system
-(hundred, thousand, lakh, crore). That covers Marathi, Gujarati, Punjabi,
-Bengali, Odia and Nepali with data alone.
+(hundred, thousand, lakh, crore). Marathi, Gujarati, Punjabi, Bengali, Odia
+and Nepali work this way, so they should need only data, but only Hindi has
+been validated so far. Filling in 100 number words with their common spelling
+variants is real work; check it with a native speaker.
 
 Two cases need more than data:
 
@@ -54,10 +56,14 @@ fractions and ordinals in the new language before trusting any results.
 
 ## 3. Get evaluation data
 
-`asr-audit prepare-fleurs --lang <fleurs_config>` works for any FLEURS
+`asr-audit prepare-fleurs --lang <fleurs_config>` downloads any FLEURS
 language, for example `mr_in`, `ta_in`, `te_in`, `bn_in` or `gu_in`. It keeps
 every utterance whose reference contains a digit, plus a seeded sample of
-test-split controls without numbers.
+test-split controls without numbers. Check the printed count of utterances
+with numbers: some languages write few numbers as digits.
+
+Two codes are in play: the FLEURS config (`mr_in`) names the dataset, and the
+pack code (`mr`) names the language pack.
 
 For another dataset, write a manifest: one JSON object per line with the
 fields of `Utterance` in `src/indic_asr_audit/data.py`. `sentence_id` must be
@@ -65,13 +71,17 @@ shared by recordings of the same text, because the bootstrap resamples by it.
 
 ## 4. Configure the systems and run
 
-Add the language to the systems in `configs/systems.toml` (Whisper language
-code, MMS adapter code, Sarvam `xx-IN` code), then:
+Each system entry fixes one language, so make a systems file per language,
+for example `configs/systems_mr.toml`, with the Whisper language code, the
+MMS adapter code and the Sarvam `xx-IN` code. Check that each system supports
+the language at all (Whisper, for example, has no Odia). Then:
 
 ```bash
-asr-audit transcribe whisper-small mms-1b-all --dataset fleurs_<config>
-asr-audit rq1 --dataset fleurs_<config> --lang <code>
+asr-audit transcribe whisper-small mms-1b-all --dataset fleurs_mr_in --systems configs/systems_mr.toml
+asr-audit rq1 --dataset fleurs_mr_in --lang mr --systems configs/systems_mr.toml
 ```
+
+`rq1` reports and skips any system whose transcripts are incomplete.
 
 ## Checklist
 

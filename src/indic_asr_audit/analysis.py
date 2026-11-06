@@ -24,10 +24,14 @@ from indic_asr_audit.metrics import Counts, char_counts, numeric_counts, word_co
 from indic_asr_audit.normalize import Level, normalize
 from indic_asr_audit.stats import bootstrap_rate, paired_difference
 
+# "numeric" and "control" mean the reference does or does not contain a digit;
+# a control may still contain a number written as a word. "held_out_numeric"
+# leaves out FLEURS train, so systems trained on it (MMS) can be compared too;
+# it is the headline subset, "numeric" is larger but has fewer systems.
 SUBSETS: dict[str, Callable[[Utterance], bool]] = {
+    "held_out_numeric": lambda u: u.has_number and u.split != "train",
     "numeric": lambda u: u.has_number,
     "control": lambda u: not u.has_number,
-    "held_out_numeric": lambda u: u.has_number and u.split != "train",
 }
 
 
@@ -98,6 +102,7 @@ def rq1_tables(
             if not {u.split for u in subset_utts} & excluded_splits.get(s, set())
         ]
         clusters = [u.sentence_id for u in subset_utts]
+        subset_scores = []
         for system in systems:
             by_level = {
                 level: score_system(subset_utts, transcripts[system], pack, level)
@@ -105,11 +110,11 @@ def rq1_tables(
             }
             scored[(system, subset)] = by_level
             for level, s in by_level.items():
-                scores.append(_row(system, subset, level, "wer", s.words, clusters))
-                scores.append(_row(system, subset, level, "cer", s.chars, clusters))
+                subset_scores.append(_row(system, subset, level, "wer", s.words, clusters))
+                subset_scores.append(_row(system, subset, level, "cer", s.chars, clusters))
             numbers = [numeric_counts(u.text, transcripts[system][u.id], pack) for u in subset_utts]
             if any(c.total for c in numbers):
-                scores.append(_row(system, subset, "-", "numeric_error", numbers, clusters))
+                subset_scores.append(_row(system, subset, "-", "numeric_error", numbers, clusters))
             for before, after in itertools.pairwise(levels):
                 diff = paired_difference(by_level[after].words, by_level[before].words, clusters)
                 steps.append(
@@ -123,13 +128,11 @@ def rq1_tables(
                     }
                 )
 
-        table = pd.DataFrame([r for r in scores if r["subset"] == subset and r["metric"] == "wer"])
-        if table.empty or len(systems) < 2:
-            continue
-        wide = table.pivot(index="system", columns="level", values="estimate")
-        for level in levels[1:]:
-            tau = kendalltau(wide[Level.WHISPER], wide[level]).statistic
-            ranks.append({"subset": subset, "versus": f"whisper vs {level}", "kendall_tau": tau})
+        scores += subset_scores
+        if len(systems) >= 2:
+            wer = pd.DataFrame([r for r in subset_scores if r["metric"] == "wer"])
+            wide = wer.pivot(index="system", columns="level", values="estimate")
+            ranks += [{"subset": subset, **row} for row in _rank_changes(wide)]
 
     convention = _convention_gap(scored, levels, utterances)
     return {
@@ -138,6 +141,35 @@ def rq1_tables(
         "ranks": pd.DataFrame(ranks),
         "convention": convention,
     }
+
+
+def _rank_changes(wer: pd.DataFrame) -> list[dict[str, object]]:
+    """Compare the ranking at the whisper level with every other level.
+
+    With only a handful of systems Kendall tau has few possible values, so
+    the flipped pairs are listed too; they are easier to interpret.
+    """
+    by_level = {level: {str(k): float(v) for k, v in wer[level].items()} for level in Level}
+    base = by_level[Level.WHISPER]
+    rows: list[dict[str, object]] = []
+    for level in list(Level)[1:]:
+        other = by_level[level]
+        flipped = [
+            f"{a}/{b}"
+            for a, b in itertools.combinations(base, 2)
+            if (base[a] - base[b]) * (other[a] - other[b]) < 0
+        ]
+        tau = kendalltau(list(base.values()), [other[k] for k in base]).statistic
+        rows.append(
+            {
+                "versus": f"whisper vs {level}",
+                "n_systems": len(base),
+                "kendall_tau": float(tau),
+                "pairs_flipped": len(flipped),
+                "flipped": " ".join(flipped),
+            }
+        )
+    return rows
 
 
 def _convention_gap(
