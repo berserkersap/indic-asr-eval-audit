@@ -102,9 +102,9 @@ class WhisperTranscriber:
         self.device, self.dtype = _device_and_dtype()
         self.processor = WhisperProcessor.from_pretrained(model, revision=self.revision)
         self.model = WhisperForConditionalGeneration.from_pretrained(
-            model, revision=self.revision, dtype=self.dtype
+            model, revision=self.revision, dtype=self.dtype, device_map=self.device
         )
-        self.model.to(self.device).eval()
+        self.model.eval()
         self.capped = 0
 
     def transcribe(self, batch: Sequence[Audio]) -> list[str]:
@@ -161,12 +161,12 @@ class CTCTranscriber:
         self.device, self.dtype = _device_and_dtype()
         self.processor = AutoProcessor.from_pretrained(model, revision=self.revision)
         self.model = AutoModelForCTC.from_pretrained(
-            model, revision=self.revision, dtype=self.dtype
+            model, revision=self.revision, dtype=self.dtype, device_map=self.device
         )
         if adapter:  # MMS: one shared model with a small adapter per language
             self.processor.tokenizer.set_target_lang(adapter)
             self.model.load_adapter(adapter)
-        self.model.to(self.device).eval()
+        self.model.eval()
 
     def transcribe(self, batch: Sequence[Audio]) -> list[str]:
         """Return one transcript per input.
