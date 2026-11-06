@@ -44,18 +44,27 @@ cluster-bootstrap intervals:
 - **WER can barely see numbers.** Numbers are 6% of the reference words, so
   even missing half of them costs MMS at most 3.0 WER points. For the open
   systems, normalising spelling and numbers changes WER by only 1 to 3 points.
-- **About three quarters of the gap between Saaras v4's two output modes is
-  how numbers are written.** The same model in `verbatim` mode (numbers as spoken words) scores
-  5.9 WER points worse than in `transcribe` mode (numbers as digits) after
-  basic normalisation, but only 1.4 [0.4, 2.4] points worse once numbers are
-  normalised; without numbers the two modes do not differ. Saaras v4 has by
-  far the lowest WER here (6.7% in `transcribe` mode, missing 6 of 135
-  numbers), but whether FLEURS was in its training data is not known.
+- **At least three quarters of the gap between Saaras v4's two output modes
+  is how numbers are written.** The same model on the same audio scores 5.9
+  WER points worse in `verbatim` mode (numbers as spoken words) than in
+  `transcribe` mode (numbers as digits) after basic normalisation, but only
+  1.4 [0.4, 2.4] points worse once numbers are normalised (1.5 on all
+  utterances with numbers). Without numbers the two modes differ by at most
+  0.3 points, with intervals that include zero. The remaining 1.4 points are
+  partly a parser gap (see the convention table below), so three quarters is
+  a lower bound. Because both modes are one model, this comparison holds even
+  if Saaras saw FLEURS in training.
+- **Saaras v4 has the lowest WER at every normalisation level** (held-out with
+  numbers: 6.7% in `transcribe` mode at the `numbers` level, 11.6% at `basic`;
+  6 of 135 numbers missed). Whether FLEURS was in its training data is not
+  known, so this is not a like-for-like comparison with the open systems and
+  does not show that Saaras is better in general.
 - **The stock Whisper normaliser makes Hindi WER look 8 to 12 points lower**
   for each open system on the held-out set (8 to 19 points across all
   subsets), because it deletes vowel signs and so splits words. It does not
-  change the ranking. For Saaras the effect is small and not significant
-  (+0.9 [−2.4, +3.5] points from `whisper` to `basic`).
+  change the ranking. For both Saaras modes the effect is small and not
+  significant (+0.9 [-2.4, +3.5] and +1.6 [-2.0, +4.5] points from `whisper`
+  to `basic`).
 - **A synthetic test set from MMS-TTS keeps the order of the systems but not
   their error level, and may be harder still on numbers.** On the 49 held-out
   sentences with numbers that MMS-TTS could voice, WER rises by 7 to 12 points
@@ -161,11 +170,16 @@ in percentage points, at each normalisation level:
 | `numbers` | +1.4 [+0.4, +2.4] | +1.5 [+1.1, +2.0] | +0.3 [-0.0, +0.8] |
 <!-- /rq1-convention -->
 
-At the `numbers` level, 1.4 points remain on held-out utterances. Of the
-numbers that `verbatim` misses and `transcribe` gets, most are years the
-speaker read in English, which `verbatim` writes in Devanagari ("नाइनटीन
-सिक्सटी सेवन" for 1967) and the parser does not yet read; the others are
-non-standard spellings ("तिपन" for तिरेपन, 53).
+At the `numbers` level, 1.4 points remain on held-out utterances. On these
+utterances `verbatim` misses 6 numbers that `transcribe` gets, in 5
+utterances. Four are years the speaker read in English, which `verbatim`
+writes in Devanagari ("नाइनटीन सिक्सटी सेवन" for 1967) and the parser does not
+yet read. Two are non-standard Hindi spellings: "तिपन" for तिरेपन (53) and
+"उन्नीस सौ छाछठ" for उन्नीस सौ छियासठ (1966).
+
+The rankings that change between levels above are the two Saaras modes on
+utterances without numbers, where they differ by less than half a point: a
+near-tie, not a real change.
 
 All utterances with numbers (more data, but MMS is left out because it was
 trained on FLEURS train):
@@ -290,7 +304,7 @@ Reading these tables:
 - Per-utterance difficulty: the median ρ is similar for synthetic audio and
   for a second speaker on held-out sentences (0.38–0.39 against 0.37) and
   lower on all sentences with numbers (0.39 against 0.47). There is no
-  interval, single systems go as low as −0.11, and the sentence sets differ
+  interval, single systems go as low as -0.11, and the sentence sets differ
   slightly (22 against 26 held-out sentences).
 - The 39 sentences left out (37 for Latin-letter terms such as "H5N1") have
   higher real-speech WER for every system, by 2 to 37 points (no interval).
@@ -331,8 +345,9 @@ with the Hindi adapter, all pinned to a Hugging Face revision in
 [`configs/systems.toml`](configs/systems.toml). Sarvam Saaras v4
 (`saaras:v4` through Sarvam's API, queried on 6 November 2026 UTC) in its
 `transcribe` (numbers as digits) and `verbatim` (numbers as spoken) modes
-isolates the effect of an output convention within one model. Whisper is decoded greedily in batches,
-with a token limit of 25 tokens per second of the longest clip in the batch.
+isolates the effect of an output convention within one model. Whisper is
+decoded greedily in batches, with a token limit of 25 tokens per second of
+the longest clip in the batch.
 <!-- rq1-token-rate -->
 The references need at most 19 tokens per second (99th percentile 16.9) with the openai/whisper-small tokenizer (`asr-audit token-rate`), so the limit only cuts off runaway repetition.
 <!-- /rq1-token-rate -->
@@ -400,8 +415,11 @@ configured but has not run yet.
 - FLEURS has no speaker ids, so the bootstrap does not model speaker
   dependence and intervals may be slightly narrow.
 - Whisper and Saaras may have seen FLEURS test or dev data; this cannot be
-  ruled out, only flagged. It matters most for Saaras, whose WER is under a
-  third of the next system's.
+  ruled out, only flagged. It matters most for Saaras, whose `transcribe` WER
+  at the `numbers` level is under a third of the next system's (6.7% against
+  23.1%), and which is not excluded from FLEURS train, so the "all with
+  numbers" rows may score it on data it was trained on. Comparisons between
+  its two modes are unaffected.
 - The number parser reads English number words only in Latin script. Saaras
   in `verbatim` mode writes numbers spoken in English in Devanagari
   ("नाइनटीन सिक्सटी सेवन"), so they count as missed, which inflates its
@@ -418,7 +436,8 @@ configured but has not run yet.
 | Date | Update |
 |---|---|
 | 2026-11-06 | Metrics, number parser and normaliser; FLEURS Hindi set; LangGraph synthesis pipeline and RQ2 analysis. RQ1 results for five open systems: the stock Whisper normaliser lowers Hindi WER by 8 to 12 points, and WER and the numeric value error rank MMS-1B against the Whisper large models in opposite orders. |
-| 2026-11-07 | RQ2 with MMS-TTS, clean and telephony, five open systems: the order of the systems holds, but WER rises by 7 to 12 points for the three strongest systems and their numeric value error by 13 to 24 points. Saaras v4 in `transcribe` and `verbatim` modes on real speech: number normalisation removes about three quarters of the WER gap between the two modes. |
+| 2026-11-07 | RQ2 with MMS-TTS, clean and telephony, five open systems: the order of the systems holds, but WER rises by 7 to 12 points for the three strongest systems and their numeric value error by 13 to 24 points. |
+| 2026-11-07 | Saaras v4 (queried on 6 November UTC) in `transcribe` and `verbatim` modes on real speech: number normalisation removes at least three quarters of the WER gap between the two modes. |
 
 Next:
 
