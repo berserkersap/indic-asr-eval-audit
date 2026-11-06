@@ -1,0 +1,15 @@
+subset,system,spearman_rho
+held_out_numeric,whisper-small,0.4658
+held_out_numeric,whisper-medium,0.4953
+held_out_numeric,whisper-large-v3,0.5247
+held_out_numeric,whisper-large-v3-turbo,0.4651
+held_out_numeric,mms-1b-all,0.2983
+numeric,whisper-small,0.4127
+numeric,whisper-medium,0.3997
+numeric,whisper-large-v3,0.4701
+numeric,whisper-large-v3-turbo,0.4593
+control,whisper-small,0.4609
+control,whisper-medium,0.4168
+control,whisper-large-v3,0.4421
+control,whisper-large-v3-turbo,0.4191
+control,mms-1b-all,0.2768
