@@ -5,7 +5,6 @@ import pytest
 
 from indic_asr_audit.report import (
     disagreement_table,
-    engine_of_set,
     fill_readme,
     ranks_summary,
     rejection_line,
@@ -132,11 +131,6 @@ def _agreement(systems: str, n: int) -> dict[str, object]:
     }
 
 
-def test_engine_of_set_drops_the_condition() -> None:
-    assert engine_of_set("mms-tts-clean") == "mms-tts"
-    assert engine_of_set("bulbul-telephony") == "bulbul"
-
-
 def test_rejection_line_counts_kept_and_left_out() -> None:
     summary = pd.DataFrame(
         [
@@ -157,19 +151,22 @@ def test_render_rq2_is_empty_before_rq2_has_run(tmp_path: Path) -> None:
     assert render_rq2(tmp_path, "d") == {}
 
 
-def test_render_rq2_reads_every_synthetic_set(tmp_path: Path) -> None:
-    rq2 = tmp_path / "rq2"
+def _rq2_results(results: Path) -> None:
+    """Ceiling, engine "tts" in two conditions, and engine "v" with no selection table."""
+    rq2 = results / "rq2"
     _csv(rq2 / "ceiling" / "gap.csv", [_gap("a", 0.2, 0.2), _gap("b", 0.4, 0.4)])
     _csv(rq2 / "ceiling" / "agreement.csv", [_agreement("all", 2)])
     _csv(
         rq2 / "ceiling" / "utterances.csv",
         [{"subset": "held_out_numeric", "system": s, "spearman_rho": 0.5} for s in "ab"],
     )
-    for condition in ("clean", "telephony"):
-        out = rq2 / f"d-tts-{condition}"
-        _csv(out / "gap.csv", [_gap("b", 0.4, 0.5), _gap("a", 0.2, 0.3)])
+    for name in ("tts-clean", "tts-telephony", "v-clean"):
+        out = rq2 / f"d-{name}"
+        control = {**_gap("a", 0.9, 0.9), "subset": "control"}
+        _csv(out / "gap.csv", [_gap("b", 0.4, 0.5), _gap("a", 0.2, 0.3), control])
         _csv(out / "agreement.csv", [_agreement("all", 2)])
-        # no same-sentence tables: write_tables leaves no file for an empty table
+        if name == "v-clean":
+            continue  # write_tables leaves no file for an empty table
         _csv(
             out / "selection.csv",
             [
@@ -178,19 +175,54 @@ def test_render_rq2_reads_every_synthetic_set(tmp_path: Path) -> None:
                 {"system": "b", "sentences": "rejected", "n": 1, "wer": 0.6},
             ],
         )
+    same = rq2 / "d-tts-clean" / "same_sentences_as_ceiling_"
+    _csv(Path(f"{same}gap.csv"), [{**_gap("a", 0.2, 0.3), "n": 2}])
+    _csv(Path(f"{same}agreement.csv"), [_agreement("all", 2), _agreement("unrelated", 1)])
+    _csv(
+        Path(f"{same}utterances.csv"),
+        [
+            {"subset": "held_out_numeric", "system": "a", "spearman_rho": 0.1},
+            {"subset": "held_out_numeric", "system": "b", "spearman_rho": 0.3},
+        ],
+    )
+    summary = results / "synth" / "d-tts-summary.csv"
+    _csv(
+        summary,
+        [{"has_number": True, "split": "test", "status": "saved", "reason": "", "sentences": 4}],
+    )
+
+
+def test_render_rq2_gap_table_covers_every_set_and_one_subset(tmp_path: Path) -> None:
+    _rq2_results(tmp_path)
     blocks = render_rq2(tmp_path, "d", agreement_subsets=["held_out_numeric"])
-    assert blocks["rq2-size"] == ""
+    assert blocks["rq2-size"] == "`tts`: 4 of 4 sentences kept."
     gap = blocks["rq2-gap"]
     assert gap.index("`tts-clean` | `a`") < gap.index("`tts-clean` | `b`")
     assert "`tts-telephony` | `a`" in gap
+    assert "`v-clean` | `a`" in gap
     assert "+10.0 [+0.0, +20.0]" in gap
+    assert "90.0" not in gap  # the control rows are another subset
+
+
+def test_render_rq2_agreement_includes_ceiling_and_same_sentences(tmp_path: Path) -> None:
+    _rq2_results(tmp_path)
+    blocks = render_rq2(tmp_path, "d", agreement_subsets=["held_out_numeric"])
     agreement = blocks["rq2-agreement"]
-    assert "second real recording | 3 | 2 | 1.00 [0.80, 1.00] | none | 0" in agreement
-    assert "`tts-clean`, all" in agreement
-    assert "same sentences" not in agreement
-    assert "| second real recording | 0.50 (0.50 to 0.50) |" in blocks["rq2-rho"]
-    assert "| `tts-clean` | - |" in blocks["rq2-rho"]
-    selection = blocks["rq2-selection"]
-    assert selection.count("`tts`") == 2
+    assert "| second real recording | 3 | 2 | 1.00 [0.80, 1.00] | none | 0 |" in agreement
+    assert "| `tts-clean`, same sentences | 2 | 2 |" in agreement
+    assert "| `tts-clean`, same sentences | 2 | 1, none from the TTS family |" in agreement
+    assert "| `tts-clean`, all | 3 | 2 |" in agreement
+    assert "`tts-telephony`, same sentences" not in agreement  # no file: empty table
+    rho = blocks["rq2-rho"]
+    assert "| second real recording | 0.50 (0.50 to 0.50) |" in rho
+    assert "| `tts-clean` | 0.20 (0.10 to 0.30) |" in rho
+    assert "| `tts-telephony` | - |" in rho
+
+
+def test_render_rq2_selection_has_one_table_per_engine(tmp_path: Path) -> None:
+    _rq2_results(tmp_path)
+    selection = render_rq2(tmp_path, "d")["rq2-selection"]
+    assert selection.count("`tts`") == 2  # clean and telephony share one engine
+    assert "`v`" not in selection  # its table was empty
     assert "| `a` | 20.0 (4) | - |" in selection
     assert "| `b` | 40.0 (4) | 60.0 (1) |" in selection

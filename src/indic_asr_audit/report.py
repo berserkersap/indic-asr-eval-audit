@@ -28,6 +28,8 @@ def _pct(row: Mapping[Hashable, Any]) -> str:
 
 
 def _markdown(table: pd.DataFrame) -> str:
+    if table.empty:
+        return "No results."
     header = "| " + " | ".join(str(c) for c in table.columns) + " |"
     rule = "|" + "|".join("---" for _ in table.columns) + "|"
     rows = ["| " + " | ".join(str(v) for v in row) + " |" for row in table.itertuples(index=False)]
@@ -180,7 +182,7 @@ def _points(estimate: float, low: float, high: float) -> str:
     return f"{estimate * 100:+.1f} [{low * 100:+.1f}, {high * 100:+.1f}]"
 
 
-def synthetic_sets(rq2_dir: Path, dataset: str) -> dict[str, Path]:
+def _synthetic_sets(rq2_dir: Path, dataset: str) -> dict[str, Path]:
     """RQ2 result folders for one dataset, keyed by test set ("mms-tts-clean")."""
     prefix = f"{dataset}-"
     return {
@@ -190,8 +192,11 @@ def synthetic_sets(rq2_dir: Path, dataset: str) -> dict[str, Path]:
     }
 
 
-def engine_of_set(name: str) -> str:
-    """The TTS engine of a test set: "mms-tts" for "mms-tts-clean"."""
+def _engine_of_set(name: str) -> str:
+    """The TTS engine of a test set: "mms-tts" for "mms-tts-clean".
+
+    Conditions ("clean", "telephony") have no hyphen, so no TTS config is needed.
+    """
     return name.rpartition("-")[0]
 
 
@@ -303,6 +308,8 @@ def selection_markdown(selections: Mapping[str, pd.DataFrame]) -> str:
     """Real-speech WER on the sentences each engine kept and left out."""
     rows = []
     for engine, table in selections.items():
+        if table.empty:
+            continue
         for system, group in table.groupby("system", sort=False):
             cells = {str(r["sentences"]): r for r in group.to_dict("records")}
             row = {"engine": f"`{engine}`", "system": f"`{system}`"}
@@ -323,11 +330,11 @@ def render_rq2(
 ) -> dict[str, str]:
     """Markdown blocks for the README's RQ2 section; empty if RQ2 has not run."""
     rq2_dir = results / "rq2"
-    sets = synthetic_sets(rq2_dir, dataset)
+    sets = _synthetic_sets(rq2_dir, dataset)
     if not sets:
         return {}
-    engines = list(dict.fromkeys(engine_of_set(name) for name in sets))
-    first_set = {e: next(p for n, p in sets.items() if engine_of_set(n) == e) for e in engines}
+    engines = list(dict.fromkeys(_engine_of_set(name) for name in sets))
+    first_set = {e: next(p for n, p in sets.items() if _engine_of_set(n) == e) for e in engines}
     sizes = []
     for engine in engines:
         summary = results / "synth" / f"{dataset}-{engine}-summary.csv"
@@ -339,7 +346,7 @@ def render_rq2(
         "rq2-agreement": agreement_table(rq2_dir, sets, agreement_subsets),
         "rq2-rho": rho_table(rq2_dir, sets, agreement_subsets),
         "rq2-selection": selection_markdown(
-            {e: pd.read_csv(p / "selection.csv") for e, p in first_set.items()}
+            {e: _read(p / "selection.csv") for e, p in first_set.items()}
         ),
     }
 

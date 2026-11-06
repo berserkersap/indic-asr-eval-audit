@@ -122,10 +122,16 @@ def _complete(dataset: str, names: list[str], ids: list[str]) -> dict[str, dict[
 def _rq2(args: argparse.Namespace) -> None:
     from indic_asr_audit.analysis import write_tables
     from indic_asr_audit.asr import load_systems
-    from indic_asr_audit.data import read_manifest
+    from indic_asr_audit.data import Utterance, read_manifest
     from indic_asr_audit.languages import get_language
     from indic_asr_audit.plots import plot_rq2
-    from indic_asr_audit.rq2 import real_ceiling, repeated_sentences, rq2_tables, selection_table
+    from indic_asr_audit.rq2 import (
+        Hypotheses,
+        real_ceiling,
+        repeated_sentences,
+        rq2_tables,
+        selection_table,
+    )
     from indic_asr_audit.synth import engine_of, related_systems
 
     pack = get_language(args.lang)
@@ -134,18 +140,20 @@ def _rq2(args: argparse.Namespace) -> None:
     real_utts = read_manifest(_manifest_path(args.dataset))
     real_all = _complete(args.dataset, list(systems), [u.id for u in real_utts])
     ceiling_utts = set(repeated_sentences(real_utts))
-    synthetic_sets = {}
+    loaded: dict[str, tuple[list[Utterance], Hypotheses]] = {}
     for name in args.synthetic:
         synthetic = read_manifest(_manifest_path(name))
         synth = _complete(name, list(systems), [u.id for u in synthetic])
         if not set(real_all) & set(synth):
             raise SystemExit(f"No system has transcripts for both {args.dataset} and {name}")
-        synthetic_sets[name] = (synthetic, synth)
+        loaded[name] = (synthetic, synth)
     # The ceiling and the selection table use the systems of the synthetic sets, like for like.
-    shared = set.intersection(*(set(synth) for _, synth in synthetic_sets.values()))
+    shared = set(real_all).intersection(*(synth for _, synth in loaded.values()))
+    if not shared:
+        raise SystemExit("No system has transcripts on every synthetic set given")
     shared_hyps = {s: h for s, h in real_all.items() if s in shared}
     write_tables(real_ceiling(real_utts, shared_hyps, pack, excluded), RESULTS / "rq2" / "ceiling")
-    for name, (synthetic, synth) in synthetic_sets.items():
+    for name, (synthetic, synth) in loaded.items():
         # synthetic ids are real utterance ids, so real_all has every real transcript needed
         related = related_systems(args.tts, engine_of(args.tts, name, args.dataset))
         tables = rq2_tables(synthetic, real_all, synth, pack, excluded, related)
