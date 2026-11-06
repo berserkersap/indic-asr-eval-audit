@@ -88,17 +88,38 @@ def steps_table(steps: pd.DataFrame, subset: str) -> str:
 
 
 def ranks_summary(ranks: pd.DataFrame) -> str:
-    """One sentence if no ranking changes between levels, else a table."""
-    if (ranks["pairs_flipped"] == 0).all():
+    """One sentence if no ranking changes between levels, else the rankings that change."""
+    changed = ranks[ranks["pairs_flipped"] > 0]
+    if changed.empty:
         return (
             "No pair of systems changes order between any two normalisation levels, "
             "in any subset (Kendall tau = 1 throughout)."
         )
-    table = ranks[["subset", "versus", "n_systems", "kendall_tau", "pairs_flipped"]].copy()
-    table["subset"] = table["subset"].map(SUBSET_NAMES)
-    table["kendall_tau"] = [f"{t:.2f}" for t in table["kendall_tau"]]
-    table.columns = ["subset", "levels", "systems", "Kendall tau", "pairs that flip"]
-    return _markdown(table)
+    table = pd.DataFrame(
+        {
+            "subset": [SUBSET_NAMES.get(str(s), str(s)) for s in changed["subset"]],
+            "levels": changed["versus"],
+            "systems": changed["n_systems"],
+            "Kendall tau": [f"{t:.2f}" for t in changed["kendall_tau"]],
+            "pairs that flip": [_pairs(p) for p in changed["flipped"]],
+        }
+    )
+    return (
+        "Only these rankings change between normalisation levels; in every other subset "
+        f"and pair of levels, no pair of systems changes order.{NEWLINE * 2}{_markdown(table)}"
+    )
+
+
+def convention_table(convention: pd.DataFrame) -> str:
+    """WER of verbatim minus transcribe output of one model, per level and subset, in points."""
+    rows = []
+    for level in Level:
+        row = {"level": f"`{level}`"}
+        for r in convention[convention["level"] == level].to_dict("records"):
+            name = SUBSET_NAMES.get(str(r["subset"]), str(r["subset"]))
+            row[name] = _points(r["wer_gap"], r["low"], r["high"])
+        rows.append(row)
+    return _markdown(pd.DataFrame(rows))
 
 
 def disagreement_table(table: pd.DataFrame) -> str:
@@ -166,6 +187,9 @@ def render_rq1(results_dir: Path, subset: str = "held_out_numeric") -> dict[str,
             f"(99th percentile {r['p99']:.1f}) with the {r['tokenizer']} tokenizer "
             "(`asr-audit token-rate`), so the limit only cuts off runaway repetition."
         )
+    convention = results_dir / "convention.csv"
+    if convention.exists():
+        blocks["rq1-convention"] = convention_table(pd.read_csv(convention))
     disagreement = results_dir / "wer_vs_numeric.csv"
     if disagreement.exists():
         blocks["rq1-disagreement"] = disagreement_table(pd.read_csv(disagreement))

@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from indic_asr_audit.report import (
+    convention_table,
     disagreement_table,
     fill_readme,
     gap_table,
@@ -232,3 +233,39 @@ def test_render_rq2_selection_has_one_table_per_engine(tmp_path: Path) -> None:
 def test_empty_tables_render_as_no_results() -> None:
     assert gap_table({}, "held_out_numeric") == "No results."
     assert gap_table({"s": pd.DataFrame()}, "held_out_numeric") == "No results."
+
+
+def test_ranks_summary_lists_only_the_rankings_that_change() -> None:
+    ranks = pd.DataFrame(
+        [
+            {
+                "subset": subset,
+                "versus": "whisper vs basic",
+                "n_systems": 3,
+                "kendall_tau": tau,
+                "pairs_flipped": flips,
+                "flipped": pair,
+            }
+            for subset, tau, flips, pair in (
+                ("numeric", 1.0, 0, float("nan")),
+                ("control", 0.33, 1, "a/b"),
+            )
+        ]
+    )
+    text = ranks_summary(ranks)
+    assert text.startswith("Only these rankings change")
+    assert "| without numbers | whisper vs basic | 3 | 0.33 | `a` vs `b` |" in text
+    assert "all with numbers" not in text
+
+
+def test_convention_table_has_one_row_per_level() -> None:
+    convention = pd.DataFrame(
+        [
+            {"subset": "control", "level": level, "wer_gap": 0.05, "low": 0.01, "high": 0.1}
+            for level in ("whisper", "basic", "spelling", "numbers")
+        ]
+    )
+    text = convention_table(convention)
+    assert text.splitlines()[0] == "| level | without numbers |"
+    assert "| `numbers` | +5.0 [+1.0, +10.0] |" in text
+    assert len(text.splitlines()) == 6
