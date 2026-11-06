@@ -40,6 +40,7 @@ def test_whisper_level_matches_transformers() -> None:
         ("10:00 बजे", "10 बजे"),
         ("10:05 बजे", "10 05 बजे"),
         ("₹500 दिए", "500 रुपये दिए"),
+        ("₹500और", "500 रुपये और"),
         ("1,2,3", "1 2 3"),
         ("में2 लोग", "में 2 लोग"),
         ("३.५", "3.5"),
@@ -78,3 +79,9 @@ def test_numbers_level_makes_spoken_and_written_equal() -> None:
 def test_zero_width_characters_are_removed() -> None:
     zwnj = chr(0x200C)
     assert normalize(f"तीन{zwnj} सौ", HINDI, Level.NUMBERS) == "300"
+
+
+def test_ordinal_suffix_spellings_score_the_same() -> None:
+    reference = normalize("15वीं सदी", HINDI, Level.NUMBERS)
+    assert normalize("पंद्रहवी सदी", HINDI, Level.NUMBERS) == reference
+    assert normalize("15 वी सदी", HINDI, Level.NUMBERS) == reference

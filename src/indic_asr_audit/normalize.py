@@ -70,7 +70,7 @@ def _basic(text: str, pack: LanguagePack) -> str:
         text = text.translate(str.maketrans(pack.native_digits, "0123456789"))
     text = _GROUPED_NUMBER.sub(lambda m: m.group().replace(",", ""), text)
     for symbol, word in pack.prefix_symbols.items():
-        text = re.sub(rf"{re.escape(symbol)}\s*(\d+(?:\.\d+)?)", rf"\1 {word}", text)
+        text = re.sub(rf"{re.escape(symbol)}\s*(\d+(?:\.\d+)?)", rf"\1 {word} ", text)
     for symbol, word in {**pack.prefix_symbols, **pack.symbols}.items():
         text = text.replace(symbol, f" {word} ")
     text = _ZERO_MINUTES.sub("", text)

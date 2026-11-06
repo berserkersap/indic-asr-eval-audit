@@ -216,14 +216,23 @@ def split_ordinals(tokens: list[str], pack: LanguagePack) -> list[str]:
     """Split ordinal number words into number and suffix.
 
     "pandrahvin" becomes "pandrah vin", matching how "15vin" is split by
-    the normaliser, so both are scored as the number 15.
+    the normaliser, so both are scored as the number 15. Every suffix
+    variant after a number is written as the first one listed, so spelling
+    differences in the suffix are not counted.
     """
+    if not pack.ordinal_suffixes:
+        return tokens
+    canonical = pack.ordinal_suffixes[0]
     out: list[str] = []
     for token in tokens:
+        after_number = bool(out) and (out[-1].isdigit() or out[-1] in pack.number_words)
+        if token in pack.ordinal_suffixes and after_number:
+            out.append(canonical)
+            continue
         for suffix in pack.ordinal_suffixes:
             stem = token.removesuffix(suffix)
             if stem != token and stem in pack.number_words:
-                out.extend((stem, suffix))
+                out.extend((stem, canonical))
                 break
         else:
             out.append(token)
