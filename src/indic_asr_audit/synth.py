@@ -152,8 +152,11 @@ class BulbulTTS:
                     speech_sample_rate=SAMPLE_RATE,
                 )
             except Exception as error:  # the SDK raises one class per HTTP status
+                import httpx
+
                 status = getattr(error, "status_code", None)
-                if status not in self.RETRY_STATUS or attempt == self.max_retries - 1:
+                transient = isinstance(error, httpx.TransportError) or status in self.RETRY_STATUS
+                if not transient or attempt == self.max_retries - 1:
                     raise
                 time.sleep(2**attempt + random.random())
         raise RuntimeError("unreachable: the last attempt returns or raises")
