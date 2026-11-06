@@ -52,7 +52,7 @@ cluster-bootstrap intervals:
   utterances with numbers). Without numbers the two modes differ by at most
   0.3 points, with intervals that include zero. The remaining 1.4 points are
   partly a parser gap (see the convention table below), so three quarters is
-  a lower bound. Because both modes are one model, this comparison holds even
+  a lower bound. Because both modes are one model, this comparison should largely hold even
   if Saaras saw FLEURS in training.
 - **Saaras v4 has the lowest WER at every normalisation level** (held-out with
   numbers: 6.7% in `transcribe` mode at the `numbers` level, 11.6% at `basic`;
@@ -419,7 +419,7 @@ configured but has not run yet.
   at the `numbers` level is under a third of the next system's (6.7% against
   23.1%), and which is not excluded from FLEURS train, so the "all with
   numbers" rows may score it on data it was trained on. Comparisons between
-  its two modes are unaffected.
+  its two modes should be largely unaffected.
 - The number parser reads English number words only in Latin script. Saaras
   in `verbatim` mode writes numbers spoken in English in Devanagari
   ("नाइनटीन सिक्सटी सेवन"), so they count as missed, which inflates its
