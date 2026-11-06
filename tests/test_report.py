@@ -6,6 +6,7 @@ import pytest
 from indic_asr_audit.report import (
     disagreement_table,
     fill_readme,
+    gap_table,
     ranks_summary,
     rejection_line,
     render_rq2,
@@ -226,3 +227,8 @@ def test_render_rq2_selection_has_one_table_per_engine(tmp_path: Path) -> None:
     assert "`v`" not in selection  # its table was empty
     assert "| `a` | 20.0 (4) | - |" in selection
     assert "| `b` | 40.0 (4) | 60.0 (1) |" in selection
+
+
+def test_empty_tables_render_as_no_results() -> None:
+    assert gap_table({}, "held_out_numeric") == "No results."
+    assert gap_table({"s": pd.DataFrame()}, "held_out_numeric") == "No results."
