@@ -36,7 +36,7 @@ language = "hi"
 adapter = "hin"
 exclude_splits = ["train"]
 
-# Same model, two output conventions: digits versus numbers as spoken.
+# One model id with a mode setting: numbers as digits versus as spoken.
 [saaras-v4-transcribe]
 backend = "sarvam"
 model = "saaras:v4"

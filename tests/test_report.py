@@ -269,3 +269,22 @@ def test_convention_table_has_one_row_per_level() -> None:
     assert text.splitlines()[0] == "| level | without numbers |"
     assert "| `numbers` | +5.0 [+1.0, +10.0] |" in text
     assert len(text.splitlines()) == 6
+
+
+def test_points_never_prints_negative_zero() -> None:
+    from indic_asr_audit.report import steps_table
+
+    steps = pd.DataFrame(
+        [
+            {
+                "system": "a",
+                "subset": "s",
+                "step": step,
+                "wer_change": 0.003,
+                "low": -0.0004,
+                "high": 0.008,
+            }
+            for step in ("whisper->basic", "basic->spelling", "spelling->numbers")
+        ]
+    )
+    assert "[+0.0, +0.8]" in steps_table(steps, "s")

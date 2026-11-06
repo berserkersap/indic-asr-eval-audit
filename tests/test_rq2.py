@@ -1,5 +1,6 @@
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -89,3 +90,26 @@ def test_selection_table_splits_kept_and_rejected_sentences() -> None:
     by_label = {r["sentences"]: r for r in table.to_dict("records")}
     assert by_label["kept"]["wer"] == 0
     assert by_label["rejected"]["wer"] > 0
+
+
+def test_tied_synthetic_rates_lower_tau_without_a_flip() -> None:
+    from indic_asr_audit.metrics import Counts
+    from indic_asr_audit.rq2 import ranking_agreement
+
+    clusters = [f"s{i}" for i in range(10)]
+    real = {s: [Counts(e, 10)] * 10 for s, e in (("a", 1), ("b", 2), ("c", 3))}
+    synth = {s: [Counts(e, 10)] * 10 for s, e in (("a", 2), ("b", 2), ("c", 4))}
+    row = ranking_agreement(real, synth, clusters)
+    assert 0 < float(str(row["kendall_tau"])) < 1  # tau-b counts the tie
+    assert row["pairs_flipped"] == 0
+    assert row["significant_flips"] == 0
+
+
+def test_per_utterance_correlation_needs_three_pairs_and_variation() -> None:
+    from indic_asr_audit.metrics import Counts
+    from indic_asr_audit.rq2 import _rho
+
+    rising = [Counts(e, 10) for e in range(4)]
+    assert _rho(rising, rising) == pytest.approx(1.0)
+    assert np.isnan(_rho(rising[:2], rising[:2]))
+    assert np.isnan(_rho(rising, [Counts(1, 10)] * 4))

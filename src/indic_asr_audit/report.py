@@ -27,6 +27,17 @@ def _pct(row: Mapping[Hashable, Any]) -> str:
     return f"{value:.1f} [{low:.1f}, {high:.1f}]"
 
 
+def _read(path: Path) -> pd.DataFrame:
+    """A result table; write_tables leaves no file for an empty one."""
+    return pd.read_csv(path) if path.exists() else pd.DataFrame()
+
+
+def _points(estimate: float, low: float, high: float) -> str:
+    """A difference of rates and its interval, in percentage points."""
+    signed = [f"{round(v * 100, 1) + 0.0:+.1f}" for v in (estimate, low, high)]  # no "-0.0"
+    return f"{signed[0]} [{signed[1]}, {signed[2]}]"
+
+
 def _markdown(table: pd.DataFrame) -> str:
     if table.empty:
         return "No results."
@@ -77,7 +88,7 @@ def steps_table(steps: pd.DataFrame, subset: str) -> str:
     """Paired WER change for each normalisation step, in percentage points."""
     rows = steps[steps["subset"] == subset].copy()
     rows["change"] = [
-        f"{e * 100:+.1f} [{lo * 100:+.1f}, {hi * 100:+.1f}]"
+        _points(e, lo, hi)
         for e, lo, hi in zip(rows["wer_change"], rows["low"], rows["high"], strict=True)
     ]
     order = [f"{a}->{b}" for a, b in itertools.pairwise(Level)]
@@ -112,12 +123,16 @@ def ranks_summary(ranks: pd.DataFrame) -> str:
 
 def convention_table(convention: pd.DataFrame) -> str:
     """WER of verbatim minus transcribe output of one model, per level and subset, in points."""
+    cells = {(str(r["level"]), str(r["subset"])): r for r in convention.to_dict("records")}
+    subsets = [s for s in SUBSET_NAMES if any(subset == s for _, subset in cells)]
     rows = []
     for level in Level:
         row = {"level": f"`{level}`"}
-        for r in convention[convention["level"] == level].to_dict("records"):
-            name = SUBSET_NAMES.get(str(r["subset"]), str(r["subset"]))
-            row[name] = _points(r["wer_gap"], r["low"], r["high"])
+        for subset in subsets:
+            r = cells.get((level, subset))
+            row[SUBSET_NAMES[subset]] = (
+                "-" if r is None else _points(r["wer_gap"], r["low"], r["high"])
+            )
         rows.append(row)
     return _markdown(pd.DataFrame(rows))
 
@@ -159,8 +174,8 @@ def diagnostics_table(diagnostics: pd.DataFrame, subset: str) -> str:
                 f"{m} of {n}"
                 for m, n in zip(rows["missed_numbers"], rows["reference_numbers"], strict=True)
             ],
-            "most WER points from numbers": [
-                f"{v * 100:.1f}" for v in rows["max_wer_from_numbers"]
+            "WER points from number words": [
+                f"{v * 100:.1f}" for v in rows["wer_from_number_words"]
             ],
         }
     )
@@ -194,16 +209,6 @@ def render_rq1(results_dir: Path, subset: str = "held_out_numeric") -> dict[str,
     if disagreement.exists():
         blocks["rq1-disagreement"] = disagreement_table(pd.read_csv(disagreement))
     return blocks
-
-
-def _read(path: Path) -> pd.DataFrame:
-    """A result table; write_tables leaves no file for an empty one."""
-    return pd.read_csv(path) if path.exists() else pd.DataFrame()
-
-
-def _points(estimate: float, low: float, high: float) -> str:
-    """A difference of rates and its interval, in percentage points."""
-    return f"{estimate * 100:+.1f} [{low * 100:+.1f}, {high * 100:+.1f}]"
 
 
 def _synthetic_sets(rq2_dir: Path, dataset: str) -> dict[str, Path]:

@@ -139,7 +139,7 @@ def _rq2(args: argparse.Namespace) -> None:
     excluded = {s: set(systems[s].exclude_splits) for s in systems}
     real_utts = read_manifest(_manifest_path(args.dataset))
     real_all = _complete(args.dataset, list(systems), [u.id for u in real_utts])
-    ceiling_utts = set(repeated_sentences(real_utts))
+    ceiling_sentences = set(repeated_sentences(real_utts))
     loaded: dict[str, tuple[list[Utterance], Hypotheses]] = {}
     for name in args.synthetic:
         synthetic = read_manifest(_manifest_path(name))
@@ -157,7 +157,7 @@ def _rq2(args: argparse.Namespace) -> None:
         # synthetic ids are real utterance ids, so real_all has every real transcript needed
         related = related_systems(args.tts, engine_of(args.tts, name, args.dataset))
         tables = rq2_tables(synthetic, real_all, synth, pack, excluded, related)
-        same = [u for u in synthetic if u.sentence_id in ceiling_utts]
+        same = [u for u in synthetic if u.sentence_id in ceiling_sentences]
         tables |= {
             f"same_sentences_as_ceiling_{k}": v
             for k, v in rq2_tables(same, real_all, synth, pack, excluded, related).items()
