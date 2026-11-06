@@ -1,0 +1,19 @@
+{
+  "config": {
+    "backend": "sarvam",
+    "model": "saaras:v4",
+    "mode": "transcribe",
+    "language": "hi-IN"
+  },
+  "versions": {
+    "torch": "2.11.0+cu128",
+    "transformers": "5.22.1",
+    "sarvamai": "0.1.43",
+    "soundfile": "0.14.0",
+    "scipy": "1.18.1"
+  },
+  "batch_size": 32,
+  "started": "2026-11-06T18:59:09+00:00",
+  "finished": "2026-11-06T19:06:26+00:00",
+  "transcribed": 723
+}
