@@ -20,8 +20,9 @@ results are added as they run; see the [research log](#research-log).
 Two terms used throughout: the **numeric value error** is the share of numbers
 written as digits in the reference whose value is missing from the
 hypothesis, after spoken numbers on both sides are parsed ("तिरेपन" and "53"
-are the same value). **Held-out** utterances are FLEURS test and dev, which no
-evaluated system was trained on.
+are the same value). **Held-out** utterances are FLEURS test and dev, which
+MMS was not trained on (Whisper's training data is not public, so overlap
+cannot be ruled out).
 
 ## Key takeaway
 
@@ -33,8 +34,9 @@ intervals:
   WER of the five systems (23.1%) but misses 67 of the 135 numbers (49.6%),
   2.7 times as many as Whisper large-v3 (25, 18.5%). Against both Whisper large
   models the two metrics rank MMS in opposite order, and both differences are
-  significant. Forgiving misspelled number words changes this very little
-  (48.1% against 17.0%), so it is not an artefact of strict spelling. Among
+  significant. Forgiving close misspellings of number words (within 0.25
+  normalised edit distance) changes this very little, so it is not an
+  artefact of strict spelling. Among
   the four Whisper models the two metrics agree. The sample is small and the
   intervals are wide, but where numbers matter, WER alone would pick the wrong
   one of these two systems.
@@ -55,17 +57,18 @@ intervals:
 <!-- /rq1-size -->
 
 WER (%) at four normalisation levels, and the numeric value error (%), strict
-and lenient (misspelled number words forgiven, wrong digits never). 95%
-cluster-bootstrap intervals; sorted by WER at the `numbers` level.
+and lenient (near-miss spellings of number words are forgiven; wrong digits
+and wrong valid numbers never are). 95% cluster-bootstrap intervals; sorted by
+WER at the `numbers` level.
 
 <!-- rq1-wer -->
 | system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error | lenient numeric error |
 |---|---|---|---|---|---|---|
 | `mms-1b-all` | 16.2 [13.4, 20.1] | 25.1 [22.6, 27.9] | 23.7 [21.1, 26.6] | 23.1 [20.4, 25.9] | 49.6 [39.1, 60.1] | 48.1 [37.9, 58.7] |
 | `whisper-large-v3` | 20.9 [17.7, 25.0] | 29.3 [26.8, 32.1] | 27.4 [24.3, 30.6] | 26.7 [23.5, 30.0] | 18.5 [7.8, 29.9] | 17.0 [6.8, 27.8] |
-| `whisper-large-v3-turbo` | 24.1 [19.6, 29.7] | 33.6 [29.0, 40.6] | 31.7 [26.6, 39.0] | 31.3 [26.3, 38.6] | 23.7 [13.3, 35.2] | 22.2 [12.6, 32.8] |
-| `whisper-medium` | 38.2 [30.7, 48.1] | 50.4 [41.3, 63.9] | 49.4 [39.9, 62.8] | 48.9 [39.5, 62.4] | 35.6 [23.9, 46.8] | 34.8 [23.1, 46.2] |
-| `whisper-small` | 68.3 [55.9, 83.4] | 76.4 [66.9, 87.8] | 75.6 [66.0, 87.1] | 75.0 [65.5, 86.5] | 78.5 [69.2, 86.3] | 74.8 [64.8, 83.1] |
+| `whisper-large-v3-turbo` | 24.1 [19.6, 29.7] | 33.6 [29.0, 40.6] | 31.7 [26.6, 39.0] | 31.3 [26.3, 38.6] | 23.7 [13.3, 35.2] | 23.0 [12.9, 33.8] |
+| `whisper-medium` | 38.2 [30.7, 48.1] | 50.4 [41.3, 63.9] | 49.4 [39.9, 62.8] | 48.9 [39.5, 62.4] | 35.6 [23.9, 46.8] | 35.6 [23.9, 46.8] |
+| `whisper-small` | 68.3 [55.9, 83.4] | 76.4 [66.9, 87.8] | 75.6 [66.0, 87.1] | 75.0 [65.5, 86.5] | 78.5 [69.2, 86.3] | 77.0 [67.5, 84.8] |
 <!-- /rq1-wer -->
 
 Pairs of systems that WER (at the `numbers` level) and the numeric value error
@@ -118,10 +121,10 @@ trained on FLEURS train):
 <!-- rq1-wer-all-numeric -->
 | system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error | lenient numeric error |
 |---|---|---|---|---|---|---|
-| `whisper-large-v3` | 21.6 [20.3, 23.3] | 30.6 [29.4, 31.8] | 28.8 [27.7, 30.0] | 27.9 [26.8, 29.1] | 16.8 [13.6, 20.2] | 15.9 [12.9, 19.3] |
-| `whisper-large-v3-turbo` | 24.9 [23.2, 26.8] | 35.2 [33.3, 37.6] | 33.6 [31.6, 36.0] | 32.7 [30.8, 35.1] | 27.0 [23.2, 31.2] | 23.6 [20.2, 27.6] |
-| `whisper-medium` | 35.5 [33.2, 38.3] | 46.6 [44.3, 49.3] | 45.3 [43.0, 48.0] | 44.5 [42.2, 47.2] | 31.9 [27.6, 36.5] | 28.7 [24.7, 33.1] |
-| `whisper-small` | 69.6 [64.4, 75.4] | 84.8 [78.2, 92.4] | 84.2 [77.6, 91.8] | 83.6 [76.9, 91.2] | 72.0 [67.7, 76.3] | 66.8 [62.3, 71.2] |
+| `whisper-large-v3` | 21.6 [20.3, 23.3] | 30.6 [29.4, 31.8] | 28.8 [27.7, 30.0] | 27.9 [26.8, 29.1] | 16.8 [13.6, 20.2] | 16.2 [13.1, 19.5] |
+| `whisper-large-v3-turbo` | 24.9 [23.2, 26.8] | 35.2 [33.3, 37.6] | 33.6 [31.6, 36.0] | 32.7 [30.8, 35.1] | 27.0 [23.2, 31.2] | 25.6 [22.1, 29.6] |
+| `whisper-medium` | 35.5 [33.2, 38.3] | 46.6 [44.3, 49.3] | 45.3 [43.0, 48.0] | 44.5 [42.2, 47.2] | 31.9 [27.6, 36.5] | 30.6 [26.3, 34.9] |
+| `whisper-small` | 69.6 [64.4, 75.4] | 84.8 [78.2, 92.4] | 84.2 [77.6, 91.8] | 83.6 [76.9, 91.2] | 72.0 [67.7, 76.3] | 68.6 [64.1, 73.0] |
 <!-- /rq1-wer-all-numeric -->
 
 ![WER by normalisation level](results/rq1/fleurs_hi_in/wer_by_level.png)
@@ -167,8 +170,9 @@ with the Hindi adapter, all pinned to a Hugging Face revision in
 configured and will be added once it has run; it isolates the effect of an
 output convention within one model. Whisper is decoded greedily in batches,
 with a token limit of 25 tokens per second of the longest clip in the batch.
-The FLEURS Hindi references need at most 19 tokens per second (99th percentile
-16.9) with Whisper's tokenizer, so the limit only cuts off runaway repetition.
+<!-- rq1-token-rate -->
+The references need at most 19 tokens per second (99th percentile 16.9) with the openai/whisper-small tokenizer (`asr-audit token-rate`), so the limit only cuts off runaway repetition.
+<!-- /rq1-token-rate -->
 
 **Normalisation levels** ([`normalize.py`](src/indic_asr_audit/normalize.py)):
 
@@ -185,9 +189,10 @@ The parser ([`numbers.py`](src/indic_asr_audit/numbers.py)) handles the Indian
 place-value system, fraction words (सवा, डेढ़, ढाई, साढ़े, पौने), decimals,
 ordinals and digits mixed with words ("8 लाख"). Every number spelled by the
 companion speller parses back to the same value (tested on 5,500 values). The
-lenient variant also accepts a run of number words within 0.25 normalised
-edit distance of the spelled-out value ("पंद्रा" for पंद्रह), but never a
-word containing a wrong digit ("1093" for 1963, "7त्तर" for 70).
+lenient variant also accepts a run of words within 0.25 normalised edit
+distance of the spelled-out value ("पंद्रा" for पंद्रह), but never a word
+with a digit ("1093" for 1963, "7त्तर" for 70) or words that read as another
+number ("तैंतीस", 33, for 35).
 
 **Statistics.** Corpus rates are sums of errors over sums of reference words.
 Intervals are 95% percentile intervals from 2,000 bootstrap resamples of
@@ -217,8 +222,9 @@ Engines: Meta MMS-TTS (open weights, CC BY-NC 4.0) and Sarvam Bulbul.
   its intervals are wide, and only one system (MMS) differs in kind from the
   Whisper family.
 - The numeric value error is strict about spelling. The lenient variant
-  bounds this effect; it forgives only close misspellings, so a badly garbled
-  but recognisable number word still counts as missed.
+  bounds this effect from one side: it forgives only close misspellings, so a
+  badly garbled but recognisable number word still counts as missed, and it
+  can occasionally forgive a garbled word that was meant as something else.
 - "Control" means no digit in the reference; a control can still contain a
   number written as a word.
 - The numeric value error matches values anywhere in the hypothesis. The

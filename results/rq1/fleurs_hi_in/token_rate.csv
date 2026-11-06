@@ -1,0 +1,2 @@
+tokenizer,utterances,median,p99,max
+openai/whisper-small,723,10.98,16.9,19.02
