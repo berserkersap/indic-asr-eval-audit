@@ -49,6 +49,8 @@ def test_numeric_counts(reference: str, hypothesis: str, expected: Counts) -> No
         ("लगभग 15 मील", "लगबग पंद्रा मिल", 1, 0),
         ("1963 में", "1093 में", 1, 1),
         ("करीब 70 किलोमीटर", "करीब 7त्तर किलोमीटर", 1, 1),
+        ("कुल 35 लोग", "कुल तैंतीस लोग", 1, 1),
+        ("सन 1900 में", "सन उन्नीस सौ एक में", 1, 1),
     ],
 )
 def test_lenient_numeric_error_forgives_misspelled_words_only(

@@ -156,6 +156,14 @@ def render_rq1(results_dir: Path, subset: str = "held_out_numeric") -> dict[str,
         "rq1-ranks": ranks_summary(pd.read_csv(results_dir / "ranks.csv")),
         "rq1-diagnostics": diagnostics_table(diagnostics, subset),
     }
+    rate = results_dir / "token_rate.csv"
+    if rate.exists():
+        r = pd.read_csv(rate).iloc[0]
+        blocks["rq1-token-rate"] = (
+            f"The references need at most {r['max']:.0f} tokens per second "
+            f"(99th percentile {r['p99']:.1f}) with the {r['tokenizer']} tokenizer "
+            "(`asr-audit token-rate`), so the limit only cuts off runaway repetition."
+        )
     disagreement = results_dir / "wer_vs_numeric.csv"
     if disagreement.exists():
         blocks["rq1-disagreement"] = disagreement_table(pd.read_csv(disagreement))

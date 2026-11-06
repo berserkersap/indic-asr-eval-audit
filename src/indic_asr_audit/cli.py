@@ -157,6 +157,40 @@ def _rq2(args: argparse.Namespace) -> None:
         print(f"RQ2 for {name} written to {out_dir}")
 
 
+def _token_rate(args: argparse.Namespace) -> None:
+    import numpy as np
+    import pandas as pd
+    import soundfile as sf
+    from transformers import WhisperTokenizer
+
+    from indic_asr_audit.asr import load_systems
+    from indic_asr_audit.data import read_manifest
+
+    system = load_systems(args.systems)[args.system]
+    tokenizer = WhisperTokenizer.from_pretrained(system.model, revision=system.options["revision"])
+    rates = np.array(
+        [
+            len(tokenizer(u.text, add_special_tokens=False).input_ids)
+            / sf.info(args.data_dir / u.audio).duration
+            for u in read_manifest(_manifest_path(args.dataset))
+        ]
+    )
+    summary = pd.DataFrame(
+        [
+            {
+                "tokenizer": system.model,
+                "utterances": len(rates),
+                "median": np.median(rates),
+                "p99": np.percentile(rates, 99),
+                "max": rates.max(),
+            }
+        ]
+    )
+    out = RESULTS / "rq1" / args.dataset / "token_rate.csv"
+    summary.round(2).to_csv(out, index=False, lineterminator="\n")
+    print(summary.round(2).to_string(index=False))
+
+
 def _report(args: argparse.Namespace) -> None:
     from indic_asr_audit.report import fill_readme, render_rq1
 
@@ -207,6 +241,14 @@ def build_parser() -> argparse.ArgumentParser:
     rq2.add_argument("--systems", type=Path, default=DEFAULT_SYSTEMS)
     rq2.add_argument("--tts", type=Path, default=DEFAULT_TTS)
     rq2.set_defaults(run=_rq2)
+    rate = commands.add_parser(
+        "token-rate", help="Whisper tokens per second of speech in the references"
+    )
+    rate.add_argument("--system", default="whisper-small", help="system whose tokenizer to use")
+    rate.add_argument("--dataset", default="fleurs_hi_in")
+    rate.add_argument("--systems", type=Path, default=DEFAULT_SYSTEMS)
+    rate.set_defaults(run=_token_rate)
+
     report = commands.add_parser("report", help="fill the README tables from the results")
     report.add_argument("--dataset", default="fleurs_hi_in")
     report.add_argument("--readme", type=Path, default=Path("README.md"))

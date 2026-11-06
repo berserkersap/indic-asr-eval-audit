@@ -88,18 +88,22 @@ def spelled_nearby(value: str, tokens: list[str], pack: LanguagePack, cutoff: fl
     """Whether some run of word tokens is a near spelling of the value in words.
 
     The run must have as many words as the standard spelling, contain no
-    digits, and be within ``cutoff`` normalised character edit distance of
-    it. This forgives "pandra" for "pandrah" and "unnees so chhiyasath" for
-    "unnees sau chhiyasath", but not "1093" for 1963 or "7ttar" for 70.
+    digits, not itself read as a different number, and be within ``cutoff``
+    normalised character edit distance of the spelling. This forgives
+    "pandra" for "pandrah", but not "1093" for 1963, "7ttar" for 70, or
+    "taintees" (33) for "paintees" (35).
     """
     from rapidfuzz.distance import Levenshtein
 
     spelled = pack.canonical_word(spell_number(Fraction(value), pack))
     width = len(spelled.split())
+    other_numbers = [s for s in find_numbers(tokens, pack) if s.value != value]
     for start in range(len(tokens) - width + 1):
         run = tokens[start : start + width]
         if any(ch.isdigit() for word in run for ch in word):
             continue
+        if any(s.start < start + width and start < s.end for s in other_numbers):
+            continue  # part of a number that reads as another value
         if Levenshtein.normalized_distance(" ".join(run), spelled) <= cutoff:
             return True
     return False
