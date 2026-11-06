@@ -1,0 +1,15 @@
+subset,system,n,wer_real,wer_synthetic,wer_gap,low,high,numeric_error_real,numeric_error_synthetic
+held_out_numeric,whisper-small,26,0.7704,0.6271,-0.1433,-0.3866,0.0359,0.8462,0.7949
+held_out_numeric,whisper-medium,26,0.4422,0.3729,-0.0693,-0.2157,0.0383,0.3846,0.3077
+held_out_numeric,whisper-large-v3,26,0.265,0.2419,-0.0231,-0.0685,0.0275,0.2564,0.1538
+held_out_numeric,whisper-large-v3-turbo,26,0.2943,0.2573,-0.037,-0.0943,0.0108,0.2564,0.2051
+held_out_numeric,mms-1b-all,26,0.2373,0.2003,-0.037,-0.0871,0.0112,0.5128,0.4615
+numeric,whisper-small,171,0.8918,0.7981,-0.0936,-0.2334,0.0436,0.7008,0.7244
+numeric,whisper-medium,171,0.4395,0.416,-0.0235,-0.0587,0.0067,0.311,0.3386
+numeric,whisper-large-v3,171,0.2804,0.2643,-0.016,-0.0327,0.0002,0.185,0.1142
+numeric,whisper-large-v3-turbo,171,0.3178,0.3243,0.0065,-0.0319,0.0613,0.2441,0.2677
+control,whisper-small,46,0.7277,0.6817,-0.046,-0.2968,0.2384,,
+control,whisper-medium,46,0.3781,0.4163,0.0382,-0.0285,0.1273,,
+control,whisper-large-v3,46,0.2385,0.2186,-0.0199,-0.0455,0.0069,,
+control,whisper-large-v3-turbo,46,0.2793,0.255,-0.0243,-0.0511,0.0055,,
+control,mms-1b-all,46,0.1856,0.1535,-0.0321,-0.0638,0.0009,,

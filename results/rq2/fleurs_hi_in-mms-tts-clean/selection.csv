@@ -1,0 +1,11 @@
+system,sentences,n,wer
+whisper-small,kept,449,0.7746
+whisper-small,rejected,39,1.1411
+whisper-medium,kept,449,0.4343
+whisper-medium,rejected,39,0.4545
+whisper-large-v3,kept,449,0.2672
+whisper-large-v3,rejected,39,0.3333
+whisper-large-v3-turbo,kept,449,0.304
+whisper-large-v3-turbo,rejected,39,0.4074
+mms-1b-all,kept,199,0.1882
+mms-1b-all,rejected,9,0.2723

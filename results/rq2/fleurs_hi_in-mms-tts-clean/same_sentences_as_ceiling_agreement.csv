@@ -1,0 +1,6 @@
+subset,systems,n_systems,kendall_tau,low,high,nan_resamples,pairs_flipped,significant_flips,flipped
+held_out_numeric,all,5,1.0,0.8,1.0,0,0,0,
+held_out_numeric,unrelated,4,1.0,0.9067,1.0,0,0,0,
+numeric,all,4,1.0,1.0,1.0,0,0,0,
+control,all,5,1.0,1.0,1.0,0,0,0,
+control,unrelated,4,1.0,1.0,1.0,0,0,0,
