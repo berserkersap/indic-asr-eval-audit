@@ -42,3 +42,6 @@ checkpoints/
 .DS_Store
 Thumbs.db
 logs/
+
+# Private working notes
+metadata/
