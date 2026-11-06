@@ -14,6 +14,12 @@ whisper-large-v3-turbo,held_out_numeric,spelling->numbers,-0.0036,-0.007,-0.0009
 mms-1b-all,held_out_numeric,whisper->basic,0.0881,0.0552,0.1152
 mms-1b-all,held_out_numeric,basic->spelling,-0.0134,-0.0191,-0.0083
 mms-1b-all,held_out_numeric,spelling->numbers,-0.0067,-0.0108,-0.003
+saaras-v4-transcribe,held_out_numeric,whisper->basic,0.0095,-0.024,0.0353
+saaras-v4-transcribe,held_out_numeric,basic->spelling,-0.0165,-0.0238,-0.0099
+saaras-v4-transcribe,held_out_numeric,spelling->numbers,-0.0326,-0.0465,-0.0204
+saaras-v4-verbatim,held_out_numeric,whisper->basic,0.0159,-0.0203,0.0445
+saaras-v4-verbatim,held_out_numeric,basic->spelling,-0.017,-0.0246,-0.0102
+saaras-v4-verbatim,held_out_numeric,spelling->numbers,-0.0768,-0.0953,-0.0605
 whisper-small,numeric,whisper->basic,0.1521,0.11,0.1947
 whisper-small,numeric,basic->spelling,-0.0065,-0.0084,-0.0047
 whisper-small,numeric,spelling->numbers,-0.0057,-0.0078,-0.0038
@@ -26,6 +32,12 @@ whisper-large-v3,numeric,spelling->numbers,-0.0092,-0.0126,-0.0065
 whisper-large-v3-turbo,numeric,whisper->basic,0.1031,0.0863,0.1194
 whisper-large-v3-turbo,numeric,basic->spelling,-0.0166,-0.0199,-0.0134
 whisper-large-v3-turbo,numeric,spelling->numbers,-0.0085,-0.0109,-0.0061
+saaras-v4-transcribe,numeric,whisper->basic,0.0143,-0.0018,0.027
+saaras-v4-transcribe,numeric,basic->spelling,-0.0221,-0.0263,-0.0183
+saaras-v4-transcribe,numeric,spelling->numbers,-0.032,-0.0374,-0.0267
+saaras-v4-verbatim,numeric,whisper->basic,0.0172,0.0008,0.0302
+saaras-v4-verbatim,numeric,basic->spelling,-0.018,-0.0216,-0.0147
+saaras-v4-verbatim,numeric,spelling->numbers,-0.086,-0.0947,-0.0779
 whisper-small,control,whisper->basic,0.1862,0.1339,0.2375
 whisper-small,control,basic->spelling,-0.0097,-0.0128,-0.0069
 whisper-small,control,spelling->numbers,-0.0003,-0.0009,0.0
@@ -41,3 +53,9 @@ whisper-large-v3-turbo,control,spelling->numbers,-0.0009,-0.0023,0.0
 mms-1b-all,control,whisper->basic,0.0784,0.0569,0.0966
 mms-1b-all,control,basic->spelling,-0.0176,-0.0223,-0.0135
 mms-1b-all,control,spelling->numbers,-0.0006,-0.0018,0.0
+saaras-v4-transcribe,control,whisper->basic,0.0303,0.0121,0.0444
+saaras-v4-transcribe,control,basic->spelling,-0.0267,-0.0334,-0.0208
+saaras-v4-transcribe,control,spelling->numbers,-0.0,-0.0,0.0
+saaras-v4-verbatim,control,whisper->basic,0.0329,0.0147,0.0467
+saaras-v4-verbatim,control,basic->spelling,-0.0239,-0.0299,-0.0183
+saaras-v4-verbatim,control,spelling->numbers,-0.0,-0.0,0.0

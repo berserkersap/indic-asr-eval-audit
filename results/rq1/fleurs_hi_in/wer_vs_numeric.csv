@@ -1,3 +1,3 @@
 subset,n_systems,kendall_tau,pairs_reversed,significant_reversals,reversed,significant
-held_out_numeric,5,0.4,3,2,whisper-medium/mms-1b-all whisper-large-v3/mms-1b-all whisper-large-v3-turbo/mms-1b-all,whisper-large-v3/mms-1b-all whisper-large-v3-turbo/mms-1b-all
-numeric,4,1.0,0,0,,
+held_out_numeric,7,0.7143,3,2,whisper-medium/mms-1b-all whisper-large-v3/mms-1b-all whisper-large-v3-turbo/mms-1b-all,whisper-large-v3/mms-1b-all whisper-large-v3-turbo/mms-1b-all
+numeric,6,1.0,0,0,,

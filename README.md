@@ -14,9 +14,9 @@ Hindi speech, with confidence intervals:
 - **RQ2.** Does a TTS-generated test set of the same sentences rank systems the
   way real speech does?
 
-Results so far cover RQ1 and RQ2 for five open models, with one TTS engine
-(MMS-TTS) for RQ2. Sarvam's Saaras is added as it runs; see the
-[research log](#research-log).
+Results so far cover RQ1 for five open models and Sarvam's Saaras v4 in two
+output modes, and RQ2 for the five open models with one TTS engine
+(MMS-TTS); see the [research log](#research-log).
 
 Two terms used throughout: the **numeric value error** is the share of numbers
 written as digits in the reference whose value is missing from the
@@ -27,12 +27,12 @@ cannot be ruled out).
 
 ## Key takeaway
 
-On FLEURS Hindi, with five open ASR systems and 95% cluster-bootstrap
-intervals:
+On FLEURS Hindi, with five open ASR systems, Sarvam's Saaras v4 and 95%
+cluster-bootstrap intervals:
 
 - **WER and the numeric value error disagree about MMS-1B.** On held-out
   utterances with numbers (85 utterances, 135 numbers), MMS-1B has the lowest
-  WER of the five systems (23.1%) but misses 67 of the 135 numbers (49.6%),
+  WER of the five open systems (23.1%) but misses 67 of the 135 numbers (49.6%),
   2.7 times as many as Whisper large-v3 (25, 18.5%). Against both Whisper large
   models the two metrics rank MMS in opposite order, and both differences are
   significant. Forgiving close misspellings of number words (within 0.25
@@ -42,12 +42,20 @@ intervals:
   intervals are wide, but where numbers matter, WER alone would pick the wrong
   one of these two systems.
 - **WER can barely see numbers.** Numbers are 6% of the reference words, so
-  even missing half of them costs MMS at most 3.0 WER points. Normalising
-  spelling and numbers changes WER by only 1 to 3 points.
+  even missing half of them costs MMS at most 3.0 WER points. For the open
+  systems, normalising spelling and numbers changes WER by only 1 to 3 points.
+- **About three quarters of the gap between Saaras v4's two output modes is
+  how numbers are written.** The same model in `verbatim` mode (numbers as spoken words) scores
+  5.9 WER points worse than in `transcribe` mode (numbers as digits) after
+  basic normalisation, but only 1.4 [0.4, 2.4] points worse once numbers are
+  normalised; without numbers the two modes do not differ. Saaras v4 has by
+  far the lowest WER here (6.7% in `transcribe` mode, missing 6 of 135
+  numbers), but whether FLEURS was in its training data is not known.
 - **The stock Whisper normaliser makes Hindi WER look 8 to 12 points lower**
-  for every system on the held-out set (8 to 19 points across all subsets),
-  because it deletes vowel signs and so splits words. It does not change the
-  ranking.
+  for each open system on the held-out set (8 to 19 points across all
+  subsets), because it deletes vowel signs and so splits words. It does not
+  change the ranking. For Saaras the effect is small and not significant
+  (+0.9 [−2.4, +3.5] points from `whisper` to `basic`).
 - **A synthetic test set from MMS-TTS keeps the order of the systems but not
   their error level, and may be harder still on numbers.** On the 49 held-out
   sentences with numbers that MMS-TTS could voice, WER rises by 7 to 12 points
@@ -77,6 +85,8 @@ WER at the `numbers` level.
 <!-- rq1-wer -->
 | system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error | lenient numeric error |
 |---|---|---|---|---|---|---|
+| `saaras-v4-transcribe` | 10.6 [7.5, 14.7] | 11.6 [9.7, 13.6] | 9.9 [8.0, 12.1] | 6.7 [5.2, 8.3] | 4.4 [0.8, 9.1] | 4.4 [0.8, 9.1] |
+| `saaras-v4-verbatim` | 15.8 [12.2, 20.3] | 17.4 [14.9, 20.3] | 15.7 [13.2, 18.5] | 8.0 [6.3, 10.1] | 8.9 [3.2, 15.3] | 8.9 [3.2, 15.3] |
 | `mms-1b-all` | 16.2 [13.4, 20.1] | 25.1 [22.6, 27.9] | 23.7 [21.1, 26.6] | 23.1 [20.4, 25.9] | 49.6 [39.1, 60.1] | 48.1 [37.9, 58.7] |
 | `whisper-large-v3` | 20.9 [17.7, 25.0] | 29.3 [26.8, 32.1] | 27.4 [24.3, 30.6] | 26.7 [23.5, 30.0] | 18.5 [7.8, 29.9] | 17.0 [6.8, 27.8] |
 | `whisper-large-v3-turbo` | 24.1 [19.6, 29.7] | 33.6 [29.0, 40.6] | 31.7 [26.6, 39.0] | 31.3 [26.3, 38.6] | 23.7 [13.3, 35.2] | 23.0 [12.9, 33.8] |
@@ -92,8 +102,8 @@ MMS, so they are not independent.
 <!-- rq1-disagreement -->
 | subset | systems | Kendall tau | reversed, significant | reversed, not significant |
 |---|---|---|---|---|
-| held-out, with numbers | 5 | 0.40 | `whisper-large-v3-turbo` vs `mms-1b-all`, `whisper-large-v3` vs `mms-1b-all` | `whisper-medium` vs `mms-1b-all` |
-| all with numbers (no MMS) | 4 | 1.00 | none | none |
+| held-out, with numbers | 7 | 0.71 | `whisper-large-v3-turbo` vs `mms-1b-all`, `whisper-large-v3` vs `mms-1b-all` | `whisper-medium` vs `mms-1b-all` |
+| all with numbers (no MMS) | 6 | 1.00 | none | none |
 <!-- /rq1-disagreement -->
 
 What drives each system's WER: outputs more than twice as long as the
@@ -104,6 +114,8 @@ error).
 <!-- rq1-diagnostics -->
 | system | WER | outputs over 2× reference length | WER without them | missed numbers | most WER points from numbers |
 |---|---|---|---|---|---|
+| `saaras-v4-transcribe` | 6.7 | 0 | 6.7 | 6 of 135 | 0.3 |
+| `saaras-v4-verbatim` | 8.0 | 0 | 8.0 | 12 of 135 | 0.5 |
 | `mms-1b-all` | 23.1 | 0 | 23.1 | 67 of 135 | 3.0 |
 | `whisper-large-v3` | 26.7 | 0 | 26.7 | 25 of 135 | 1.1 |
 | `whisper-large-v3-turbo` | 31.3 | 1 | 28.8 | 32 of 135 | 1.4 |
@@ -118,6 +130,8 @@ next:
 | system | whisper → basic | basic → spelling | spelling → numbers |
 |---|---|---|---|
 | `mms-1b-all` | +8.8 [+5.5, +11.5] | -1.3 [-1.9, -0.8] | -0.7 [-1.1, -0.3] |
+| `saaras-v4-transcribe` | +0.9 [-2.4, +3.5] | -1.7 [-2.4, -1.0] | -3.3 [-4.7, -2.0] |
+| `saaras-v4-verbatim` | +1.6 [-2.0, +4.5] | -1.7 [-2.5, -1.0] | -7.7 [-9.5, -6.0] |
 | `whisper-large-v3` | +8.4 [+4.7, +11.3] | -1.9 [-3.1, -0.8] | -0.7 [-1.2, -0.3] |
 | `whisper-large-v3-turbo` | +9.5 [+5.5, +13.4] | -1.9 [-3.1, -0.9] | -0.4 [-0.7, -0.1] |
 | `whisper-medium` | +12.3 [+7.3, +17.7] | -1.1 [-1.9, -0.4] | -0.4 [-0.8, -0.1] |
@@ -125,8 +139,33 @@ next:
 <!-- /rq1-steps -->
 
 <!-- rq1-ranks -->
-No pair of systems changes order between any two normalisation levels, in any subset (Kendall tau = 1 throughout).
+Only these rankings change between normalisation levels; in every other subset and pair of levels, no pair of systems changes order.
+
+| subset | levels | systems | Kendall tau | pairs that flip |
+|---|---|---|---|---|
+| without numbers | whisper vs basic | 7 | 0.90 | `saaras-v4-transcribe` vs `saaras-v4-verbatim` |
+| without numbers | whisper vs spelling | 7 | 0.90 | `saaras-v4-transcribe` vs `saaras-v4-verbatim` |
+| without numbers | whisper vs numbers | 7 | 0.90 | `saaras-v4-transcribe` vs `saaras-v4-verbatim` |
 <!-- /rq1-ranks -->
+
+Same model, same audio, two output conventions: WER of Saaras v4 in `verbatim`
+mode (numbers as spoken words) minus `transcribe` mode (numbers as digits),
+in percentage points, at each normalisation level:
+
+<!-- rq1-convention -->
+| level | held-out, with numbers | all with numbers (no MMS) | without numbers |
+|---|---|---|---|
+| `whisper` | +5.2 [+3.6, +7.0] | +6.2 [+5.4, +7.1] | -0.2 [-0.5, +0.1] |
+| `basic` | +5.9 [+3.9, +8.1] | +6.5 [+5.6, +7.5] | +0.1 [-0.5, +0.6] |
+| `spelling` | +5.8 [+3.8, +8.2] | +6.9 [+6.0, +7.9] | +0.3 [-0.0, +0.8] |
+| `numbers` | +1.4 [+0.4, +2.4] | +1.5 [+1.1, +2.0] | +0.3 [-0.0, +0.8] |
+<!-- /rq1-convention -->
+
+At the `numbers` level, 1.4 points remain on held-out utterances. Of the
+numbers that `verbatim` misses and `transcribe` gets, most are years the
+speaker read in English, which `verbatim` writes in Devanagari ("नाइनटीन
+सिक्सटी सेवन" for 1967) and the parser does not yet read; the others are
+non-standard spellings ("तिपन" for तिरेपन, 53).
 
 All utterances with numbers (more data, but MMS is left out because it was
 trained on FLEURS train):
@@ -134,6 +173,8 @@ trained on FLEURS train):
 <!-- rq1-wer-all-numeric -->
 | system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error | lenient numeric error |
 |---|---|---|---|---|---|---|
+| `saaras-v4-transcribe` | 10.7 [9.3, 12.3] | 12.2 [11.3, 13.1] | 10.0 [9.1, 10.9] | 6.8 [6.1, 7.5] | 5.3 [3.4, 7.6] | 5.3 [3.4, 7.6] |
+| `saaras-v4-verbatim` | 17.0 [15.2, 18.9] | 18.7 [17.5, 20.0] | 16.9 [15.7, 18.2] | 8.3 [7.5, 9.2] | 11.6 [8.5, 14.6] | 11.2 [8.2, 14.2] |
 | `whisper-large-v3` | 21.6 [20.3, 23.3] | 30.6 [29.4, 31.8] | 28.8 [27.7, 30.0] | 27.9 [26.8, 29.1] | 16.8 [13.6, 20.2] | 16.2 [13.1, 19.5] |
 | `whisper-large-v3-turbo` | 24.9 [23.2, 26.8] | 35.2 [33.3, 37.6] | 33.6 [31.6, 36.0] | 32.7 [30.8, 35.1] | 27.0 [23.2, 31.2] | 25.6 [22.1, 29.6] |
 | `whisper-medium` | 35.5 [33.2, 38.3] | 46.6 [44.3, 49.3] | 45.3 [43.0, 48.0] | 44.5 [42.2, 47.2] | 31.9 [27.6, 36.5] | 30.6 [26.3, 34.9] |
@@ -287,10 +328,10 @@ scored on it. `numeric` (523) gives tighter intervals for the other systems.
 
 **Systems.** Whisper small, medium, large-v3 and large-v3-turbo, and MMS-1B-all
 with the Hindi adapter, all pinned to a Hugging Face revision in
-[`configs/systems.toml`](configs/systems.toml). Sarvam Saaras v4 in its
-`transcribe` (numbers as digits) and `verbatim` (numbers as spoken) modes is
-configured and will be added once it has run; it isolates the effect of an
-output convention within one model. Whisper is decoded greedily in batches,
+[`configs/systems.toml`](configs/systems.toml). Sarvam Saaras v4
+(`saaras:v4` through Sarvam's API, queried on 6 November 2026 UTC) in its
+`transcribe` (numbers as digits) and `verbatim` (numbers as spoken) modes
+isolates the effect of an output convention within one model. Whisper is decoded greedily in batches,
 with a token limit of 25 tokens per second of the longest clip in the batch.
 <!-- rq1-token-rate -->
 The references need at most 19 tokens per second (99th percentile 16.9) with the openai/whisper-small tokenizer (`asr-audit token-rate`), so the limit only cuts off runaway repetition.
@@ -359,7 +400,12 @@ configured but has not run yet.
 - FLEURS has no speaker ids, so the bootstrap does not model speaker
   dependence and intervals may be slightly narrow.
 - Whisper and Saaras may have seen FLEURS test or dev data; this cannot be
-  ruled out, only flagged.
+  ruled out, only flagged. It matters most for Saaras, whose WER is under a
+  third of the next system's.
+- The number parser reads English number words only in Latin script. Saaras
+  in `verbatim` mode writes numbers spoken in English in Devanagari
+  ("नाइनटीन सिक्सटी सेवन"), so they count as missed, which inflates its
+  numeric value error and part of the remaining convention gap.
 - Saaras is a hosted model that can change without notice; its cached
   transcripts in `results/transcripts/` are the reproducible artifact.
 - RQ2 uses one TTS engine with one speaker (MMS-TTS; seeds vary only the
@@ -372,11 +418,13 @@ configured but has not run yet.
 | Date | Update |
 |---|---|
 | 2026-11-06 | Metrics, number parser and normaliser; FLEURS Hindi set; LangGraph synthesis pipeline and RQ2 analysis. RQ1 results for five open systems: the stock Whisper normaliser lowers Hindi WER by 8 to 12 points, and WER and the numeric value error rank MMS-1B against the Whisper large models in opposite orders. |
-| 2026-11-07 | RQ2 with MMS-TTS, clean and telephony, five open systems: the order of the systems holds, but WER rises by 7 to 12 points for the three strongest systems and their numeric value error by 13 to 24 points. |
+| 2026-11-07 | RQ2 with MMS-TTS, clean and telephony, five open systems: the order of the systems holds, but WER rises by 7 to 12 points for the three strongest systems and their numeric value error by 13 to 24 points. Saaras v4 in `transcribe` and `verbatim` modes on real speech: number normalisation removes about three quarters of the WER gap between the two modes. |
 
 Next:
 
-- Saaras v4 in `transcribe` and `verbatim` modes, on real speech and in RQ2.
+- Saaras v4 on the synthetic sets, so it joins RQ2.
+- Parse English number words written in Devanagari, and years read as pairs
+  ("nineteen sixty-seven").
 - RQ2 with Bulbul as a second TTS engine; an interval for the change in
   numeric value error; listening checks of synthetic number words.
 - Agreement between the numeric value error, an LLM judge in the style of
