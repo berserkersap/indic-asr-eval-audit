@@ -5,22 +5,36 @@ __pycache__/
 build/
 dist/
 .venv/
+venv/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
 
 # Secrets
 .env
+.env.*
+!.env.example
 
-# Downloaded and generated audio (rebuilt by the pipeline)
-data/raw/
-data/audio/
+# Downloaded and generated data (rebuilt by the pipeline)
+data/
 *.wav
 *.flac
+*.mp3
+*.ogg
+*.opus
+*.m4a
 *.tar.gz
 
-# Model checkpoints
+# Model weights
 checkpoints/
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.onnx
 
 # Editors and OS
 .vscode/
