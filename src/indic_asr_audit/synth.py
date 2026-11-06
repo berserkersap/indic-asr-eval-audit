@@ -152,7 +152,7 @@ class BulbulTTS:
                     speech_sample_rate=SAMPLE_RATE,
                 )
             except Exception as error:  # the SDK raises one class per HTTP status
-                import httpx
+                import httpx  # installed with sarvamai
 
                 status = getattr(error, "status_code", None)
                 transient = isinstance(error, httpx.TransportError) or status in self.RETRY_STATUS

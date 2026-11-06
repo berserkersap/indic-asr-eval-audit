@@ -168,3 +168,24 @@ def test_deleted_clip_is_made_again(tmp_path: Path, corpus: list[Utterance]) -> 
     engine = FakeEngine(["a"])
     run(engine, corpus[:1], tmp_path)
     assert len(engine.requests) == 1
+
+
+def test_bulbul_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    from indic_asr_audit import synth
+
+    monkeypatch.setenv("SARVAM_API_KEY", "test")
+    monkeypatch.setattr("time.sleep", lambda _: None)
+    tts = synth.BulbulTTS("bulbul:v3", "hi-IN", ["priya"])
+    calls = []
+
+    def convert(**_: Any) -> str:
+        calls.append(1)
+        if len(calls) == 1:
+            raise httpx.ConnectError("connection reset")
+        return "audio"
+
+    monkeypatch.setattr(tts.client.text_to_speech, "convert", convert)
+    assert tts._request("नमस्ते", "priya") == "audio"
+    assert len(calls) == 2
