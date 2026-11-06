@@ -307,17 +307,30 @@ def load_systems(path: Path) -> dict[str, SystemConfig]:
 def read_transcripts(path: Path) -> dict[str, str]:
     """Read cached transcripts as {utterance id: hypothesis}.
 
-    A run killed mid-write can leave a partial last line; it is cut off here
-    so the next run appends to a clean file.
+    Read-only. A partial last line, left by a crash or by a run still being
+    written, is ignored.
     """
     if not path.exists():
         return {}
-    data = path.read_bytes()
-    if data and not data.endswith(b"\n"):
-        data = data[: data.rfind(b"\n") + 1]
-        path.write_bytes(data)
-    rows = (json.loads(line) for line in data.decode("utf-8").splitlines() if line.strip())
+    lines = path.read_bytes().split(b"\n")
+    rows = [json.loads(line) for line in lines[:-1] if line.strip()]
     return {row["id"]: row["hypothesis"] for row in rows}
+
+
+def _drop_partial_line(path: Path) -> None:
+    """Cut a partial last line so new lines are appended to a clean file."""
+    data = path.read_bytes() if path.exists() else b""
+    if data and not data.endswith(b"\n"):
+        path.write_bytes(data[: data.rfind(b"\n") + 1])
+
+
+def _read_meta(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    meta: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    if "config" not in meta:
+        raise ValueError(f"{path} predates the current runner; delete it and its transcripts")
+    return meta
 
 
 def run_transcription(
@@ -331,18 +344,21 @@ def run_transcription(
 
     Output is one JSON line per utterance. A sidecar ``.meta.json`` holds the
     settings that produced it; resuming with different settings is refused,
-    so one file never mixes two configurations. Utterances are sorted by
-    duration so each batch pads as little as possible.
+    so one file never mixes two configurations. Counts in the sidecar add up
+    over resumed runs. Utterances are sorted by duration so each batch pads
+    as little as possible.
     """
     import soundfile as sf
 
     config = transcriber.describe()
     meta_path = out_path.with_suffix(".meta.json")
-    if meta_path.exists():
-        previous = json.loads(meta_path.read_text(encoding="utf-8"))["config"]
-        if previous != config:
-            raise ValueError(f"{out_path} was made with other settings: {previous} != {config}")
+    previous = _read_meta(meta_path)
+    if previous and previous["config"] != config:
+        raise ValueError(
+            f"{out_path} was made with other settings: {previous['config']} != {config}"
+        )
 
+    _drop_partial_line(out_path)
     done = read_transcripts(out_path)
     todo = [u for u in utterances if u.id not in done]
     if not todo:
@@ -352,7 +368,7 @@ def run_transcription(
         "config": config,
         "versions": _package_versions("torch", "transformers", "sarvamai", "soundfile", "scipy"),
         "batch_size": batch_size,
-        "started": datetime.now(UTC).isoformat(timespec="seconds"),
+        "started": previous.get("started", datetime.now(UTC).isoformat(timespec="seconds")),
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
@@ -364,7 +380,7 @@ def run_transcription(
                 f.write(json.dumps({"id": utt.id, "hypothesis": text}, ensure_ascii=False) + "\n")
             f.flush()
     meta["finished"] = datetime.now(UTC).isoformat(timespec="seconds")
-    meta["transcribed"] = len(todo)
+    meta["transcribed"] = previous.get("transcribed", 0) + len(todo)
     if (capped := getattr(transcriber, "capped", None)) is not None:
-        meta["capped_outputs"] = capped
+        meta["capped_outputs"] = previous.get("capped_outputs", 0) + capped
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")

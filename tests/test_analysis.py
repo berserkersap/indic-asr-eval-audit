@@ -89,7 +89,13 @@ def test_convention_gap_is_verbatim_minus_transcribe() -> None:
 
 
 def test_rank_table_lists_flipped_pairs() -> None:
-    transcripts = {**TRANSCRIPTS, "noisy": {**TRANSCRIPTS["digits"], "u0": "गलत गलत गलत"}}
+    # "words" says numbers aloud: worse than "digits" until numbers are
+    # normalised, then tied with it. "slip" mishears one other word, so it
+    # beats "words" at the start and loses to it at the numbers level.
+    slip = {**TRANSCRIPTS["digits"], "u0": "उसने 53 किताबें खरीदी"}
+    transcripts = {"words": TRANSCRIPTS["words"], "slip": slip}
     ranks = rq1_tables(UTTERANCES, transcripts, HINDI, {})["ranks"]
     row = ranks[(ranks["subset"] == "numeric") & (ranks["versus"] == "whisper vs numbers")]
-    assert int(row["n_systems"].iloc[0]) == 3
+    assert int(row["n_systems"].iloc[0]) == 2
+    assert int(row["pairs_flipped"].iloc[0]) == 1
+    assert float(row["kendall_tau"].iloc[0]) < 0

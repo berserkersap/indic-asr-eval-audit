@@ -80,11 +80,36 @@ def test_resume_with_other_settings_is_refused(tmp_path: Path, corpus: list[Utte
         run_transcription(FakeTranscriber("b"), corpus, tmp_path, out)
 
 
-def test_partial_last_line_is_dropped(tmp_path: Path) -> None:
+def test_reading_ignores_a_partial_last_line_without_changing_the_file(tmp_path: Path) -> None:
     out = tmp_path / "fake.jsonl"
-    out.write_bytes(b'{"id": "u0", "hypothesis": "ok"}\n{"id": "u1", "hypo')
+    content = b'{"id": "u0", "hypothesis": "ok"}' + bytes([10]) + b'{"id": "u1", "hypo'
+    out.write_bytes(content)
     assert read_transcripts(out) == {"u0": "ok"}
-    assert out.read_bytes().endswith(b"\n")
+    assert out.read_bytes() == content
+
+
+def test_runner_repairs_a_partial_last_line(tmp_path: Path, corpus: list[Utterance]) -> None:
+    out = tmp_path / "fake.jsonl"
+    out.write_bytes(b'{"id": "u0", "hypothesis": "4800"}' + bytes([10]) + b'{"id": "u1", "hy')
+    run_transcription(FakeTranscriber(), corpus, tmp_path, out)
+    assert read_transcripts(out) == {"u0": "4800", "u1": "1600", "u2": "3200"}
+
+
+def test_meta_from_an_older_runner_is_refused(tmp_path: Path, corpus: list[Utterance]) -> None:
+    out = tmp_path / "fake.jsonl"
+    out.with_suffix(".meta.json").write_text('{"model": "x"}', encoding="utf-8")
+    with pytest.raises(ValueError, match="predates"):
+        run_transcription(FakeTranscriber(), corpus, tmp_path, out)
+
+
+def test_meta_counts_add_up_over_resumed_runs(tmp_path: Path, corpus: list[Utterance]) -> None:
+    out = tmp_path / "fake.jsonl"
+    run_transcription(FakeTranscriber(), corpus[:1], tmp_path, out)
+    first = json.loads(out.with_suffix(".meta.json").read_text(encoding="utf-8"))
+    run_transcription(FakeTranscriber(), corpus, tmp_path, out)
+    meta = json.loads(out.with_suffix(".meta.json").read_text(encoding="utf-8"))
+    assert meta["transcribed"] == 3
+    assert meta["started"] == first["started"]
 
 
 @pytest.mark.parametrize(
