@@ -134,22 +134,28 @@ def _rq2(args: argparse.Namespace) -> None:
     real_utts = read_manifest(_manifest_path(args.dataset))
     real_all = _complete(args.dataset, list(systems), [u.id for u in real_utts])
     ceiling_utts = set(repeated_sentences(real_utts))
-    write_tables(real_ceiling(real_utts, real_all, pack, excluded), RESULTS / "rq2" / "ceiling")
+    synthetic_sets = {}
     for name in args.synthetic:
         synthetic = read_manifest(_manifest_path(name))
-        ids = [u.id for u in synthetic]
-        real = _complete(args.dataset, list(systems), ids)
-        synth = _complete(name, list(systems), ids)
-        if not set(real) & set(synth):
+        synth = _complete(name, list(systems), [u.id for u in synthetic])
+        if not set(real_all) & set(synth):
             raise SystemExit(f"No system has transcripts for both {args.dataset} and {name}")
+        synthetic_sets[name] = (synthetic, synth)
+    # The ceiling and the selection table use the systems of the synthetic sets, like for like.
+    shared = set.intersection(*(set(synth) for _, synth in synthetic_sets.values()))
+    shared_hyps = {s: h for s, h in real_all.items() if s in shared}
+    write_tables(real_ceiling(real_utts, shared_hyps, pack, excluded), RESULTS / "rq2" / "ceiling")
+    for name, (synthetic, synth) in synthetic_sets.items():
+        # synthetic ids are real utterance ids, so real_all has every real transcript needed
         related = related_systems(args.tts, engine_of(args.tts, name, args.dataset))
-        tables = rq2_tables(synthetic, real, synth, pack, excluded, related)
+        tables = rq2_tables(synthetic, real_all, synth, pack, excluded, related)
         same = [u for u in synthetic if u.sentence_id in ceiling_utts]
         tables |= {
             f"same_sentences_as_ceiling_{k}": v
-            for k, v in rq2_tables(same, real, synth, pack, excluded, related).items()
+            for k, v in rq2_tables(same, real_all, synth, pack, excluded, related).items()
         }
-        tables["selection"] = selection_table(real_utts, set(ids), real_all, pack, excluded)
+        kept = {u.id for u in synthetic}
+        tables["selection"] = selection_table(real_utts, kept, shared_hyps, pack, excluded)
         out_dir = RESULTS / "rq2" / name
         write_tables(tables, out_dir)
         if not tables["gap"].empty:
