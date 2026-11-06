@@ -1,0 +1,45 @@
+# ASR systems evaluated. Each table is one system. Keys other than backend, model,
+# language and exclude_splits are passed to the backend.
+# Hugging Face revisions are resolved at run time and recorded next to the
+# transcripts in results/transcripts/<dataset>/<system>.meta.json.
+
+[whisper-small]
+backend = "whisper"
+model = "openai/whisper-small"
+language = "hi"
+
+[whisper-medium]
+backend = "whisper"
+model = "openai/whisper-medium"
+language = "hi"
+
+[whisper-large-v3]
+backend = "whisper"
+model = "openai/whisper-large-v3"
+language = "hi"
+
+[whisper-large-v3-turbo]
+backend = "whisper"
+model = "openai/whisper-large-v3-turbo"
+language = "hi"
+
+# Trained partly on FLEURS train, so never scored on that split.
+[mms-1b-all]
+backend = "ctc"
+model = "facebook/mms-1b-all"
+language = "hi"
+adapter = "hin"
+exclude_splits = ["train"]
+
+# Same model, two output conventions: digits versus numbers as spoken.
+[saaras-v4-transcribe]
+backend = "sarvam"
+model = "saaras:v4"
+mode = "transcribe"
+language = "hi-IN"
+
+[saaras-v4-verbatim]
+backend = "sarvam"
+model = "saaras:v4"
+mode = "verbatim"
+language = "hi-IN"
