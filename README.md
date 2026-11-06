@@ -42,8 +42,8 @@ cluster-bootstrap intervals:
   intervals are wide, but where numbers matter, WER alone would pick the wrong
   one of these two systems.
 - **WER can barely see numbers.** Numbers are 6% of the reference words, so
-  MMS's 67 missed numbers account for only 4.0 of its WER points (word errors
-  that involve a word with a digit). For the open systems, normalising
+  word errors on numbers (any error that involves a word with a digit)
+  account for only 4.0 of MMS's WER points, although it misses 67 numbers. For the open systems, normalising
   spelling and numbers changes WER by only 1 to 3 points.
 - **At least three quarters of the gap between Saaras v4's two output modes
   is how numbers are written.** One model id (`saaras:v4`) on the same audio,
