@@ -73,6 +73,64 @@ def _rq1(args: argparse.Namespace) -> None:
     print(f"RQ1 for {len(transcripts)} systems written to {out_dir}")
 
 
+def _synthesize(args: argparse.Namespace) -> None:
+    from indic_asr_audit.data import read_manifest, write_manifest
+    from indic_asr_audit.languages import get_language
+    from indic_asr_audit.synth import load_engine, synthesize_manifest
+
+    utterances = read_manifest(_manifest_path(args.dataset))
+    if args.numeric_only:
+        utterances = [u for u in utterances if u.has_number]
+    engine = load_engine(args.tts, args.engine)
+    manifests = synthesize_manifest(
+        engine, get_language(args.lang), utterances, args.data_dir, args.dataset
+    )
+    for condition, synthetic in manifests.items():
+        name = f"{args.dataset}-{args.engine}-{condition}"
+        write_manifest(_manifest_path(name), synthetic)
+        print(f"{name}: {len(synthetic)} utterances")
+
+
+def _complete(dataset: str, names: list[str], ids: list[str]) -> dict[str, dict[str, str]]:
+    from indic_asr_audit.asr import read_transcripts
+
+    found = {}
+    for name in names:
+        hyps = read_transcripts(Path("results") / "transcripts" / dataset / f"{name}.jsonl")
+        done = sum(i in hyps for i in ids)
+        if done == len(ids):
+            found[name] = hyps
+        else:
+            print(f"skipping {name} on {dataset}: {done}/{len(ids)} utterances transcribed")
+    return found
+
+
+def _rq2(args: argparse.Namespace) -> None:
+    from indic_asr_audit.analysis import write_tables
+    from indic_asr_audit.asr import load_systems
+    from indic_asr_audit.data import read_manifest
+    from indic_asr_audit.languages import get_language
+    from indic_asr_audit.plots import plot_rq2
+    from indic_asr_audit.rq2 import rq2_tables
+
+    systems = load_systems(args.systems)
+    for name in args.synthetic:
+        synthetic = read_manifest(_manifest_path(name))
+        ids = [u.id for u in synthetic]
+        real = _complete(args.dataset, list(systems), ids)
+        synth = _complete(name, list(systems), ids)
+        if not set(real) & set(synth):
+            raise SystemExit(
+                f"No system has complete transcripts for both {args.dataset} and {name}"
+            )
+        excluded = {s: set(systems[s].exclude_splits) for s in systems}
+        tables = rq2_tables(synthetic, real, synth, get_language(args.lang), excluded)
+        out_dir = Path("results") / "rq2" / name
+        write_tables(tables, out_dir)
+        plot_rq2(tables["gap"], out_dir / "real_vs_synthetic.png", title=name)
+        print(f"RQ2 for {name} written to {out_dir}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Return the top-level argument parser."""
     parser = argparse.ArgumentParser(
@@ -96,11 +154,25 @@ def build_parser() -> argparse.ArgumentParser:
     transcribe.add_argument("--batch-size", type=int, default=32)
     transcribe.set_defaults(run=_transcribe)
 
+    synth = commands.add_parser("synthesize", help="speak a manifest's sentences with TTS")
+    synth.add_argument("engine", help="name from the TTS file")
+    synth.add_argument("--dataset", default="fleurs_hi_in")
+    synth.add_argument("--lang", default="hi", help="language pack code")
+    synth.add_argument("--tts", type=Path, default=Path("configs/tts.toml"))
+    synth.add_argument("--numeric-only", action="store_true", help="skip control utterances")
+    synth.set_defaults(run=_synthesize)
+
     rq1 = commands.add_parser("rq1", help="score every system at every normalisation level")
     rq1.add_argument("--dataset", default="fleurs_hi_in")
     rq1.add_argument("--lang", default="hi", help="language pack code")
     rq1.add_argument("--systems", type=Path, default=DEFAULT_SYSTEMS)
     rq1.set_defaults(run=_rq1)
+    rq2 = commands.add_parser("rq2", help="compare synthetic test sets with real speech")
+    rq2.add_argument("synthetic", nargs="+", help="synthetic manifest names")
+    rq2.add_argument("--dataset", default="fleurs_hi_in", help="the real dataset")
+    rq2.add_argument("--lang", default="hi", help="language pack code")
+    rq2.add_argument("--systems", type=Path, default=DEFAULT_SYSTEMS)
+    rq2.set_defaults(run=_rq2)
     return parser
 
 

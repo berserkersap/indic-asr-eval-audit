@@ -10,7 +10,7 @@ Resamples with nothing to score (a zero denominator) are dropped before the
 percentiles are taken.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -100,3 +100,30 @@ def paired_difference(
             axis=1
         ) / totals_b[idx].sum(axis=1)
     return _interval(corpus_rate(counts_a) - corpus_rate(counts_b), samples, confidence)
+
+
+def bootstrap_rate_samples(
+    counts_by_system: Mapping[str, Sequence[Counts]],
+    clusters: Sequence[str],
+    *,
+    n_resamples: int = DEFAULT_RESAMPLES,
+    seed: int = 0,
+) -> NDArray[np.float64]:
+    """Corpus rates of several systems on the same resamples.
+
+    Returns an array of shape (n_resamples, n_systems), columns in the order
+    of ``counts_by_system``, so statistics of the ranking (such as Kendall
+    tau) can be bootstrapped.
+    """
+    sums = [_cluster_sums(counts, clusters) for counts in counts_by_system.values()]
+    idx = _resample_index(len(sums[0][0]), n_resamples, seed)
+    with np.errstate(invalid="ignore"):
+        rates = [errors[idx].sum(axis=1) / totals[idx].sum(axis=1) for errors, totals in sums]
+    return np.stack(rates, axis=1)
+
+
+def percentile_interval(
+    estimate: float, samples: NDArray[np.float64], confidence: float = 0.95
+) -> Interval:
+    """Percentile interval of bootstrap samples around an estimate."""
+    return _interval(estimate, samples, confidence)

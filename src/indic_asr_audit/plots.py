@@ -42,3 +42,24 @@ def plot_rq1(scores: pd.DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=150)
     plt.close(fig)
+
+
+def plot_rq2(gap: pd.DataFrame, path: Path, title: str, subset: str = "held_out_numeric") -> None:
+    """WER on real audio against WER on synthetic audio, one point per system."""
+    rows = gap[gap["subset"] == subset]
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.scatter(rows["wer_real"] * 100, rows["wer_synthetic"] * 100)
+    for record in rows.to_dict("records"):
+        point = (float(record["wer_real"]) * 100, float(record["wer_synthetic"]) * 100)
+        ax.annotate(str(record["system"]), point, fontsize=7)
+    values = [*rows["wer_real"], *rows["wer_synthetic"]]
+    top = max(float(v) for v in values) * 110 if values else 1.0
+    ax.plot([0, top], [0, top], linestyle="--", color="grey", linewidth=1)
+    ax.set_xlabel("WER on real speech (%)")
+    ax.set_ylabel("WER on synthetic speech (%)")
+    ax.set_title(f"{title}, {subset}", fontsize=9)
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
