@@ -176,6 +176,14 @@ def ranking_agreement(
     }
 
 
+def repeated_sentences(utterances: Sequence[Utterance]) -> dict[str, list[Utterance]]:
+    """Recordings of every sentence read at least twice, in manifest order."""
+    takes: dict[str, list[Utterance]] = {}
+    for utt in utterances:
+        takes.setdefault(utt.sentence_id, []).append(utt)
+    return {sentence: group for sentence, group in takes.items() if len(group) >= 2}
+
+
 def real_ceiling(
     utterances: Sequence[Utterance],
     real_hyps: Hypotheses,
@@ -188,10 +196,7 @@ def real_ceiling(
     order) plays "real" and the second plays "synthetic". The result is the
     agreement to expect from a second human speaker.
     """
-    takes: dict[str, list[Utterance]] = {}
-    for utt in utterances:
-        takes.setdefault(utt.sentence_id, []).append(utt)
-    pairs = [(group[0], group[1]) for group in takes.values() if len(group) >= 2]
+    pairs = [(group[0], group[1]) for group in repeated_sentences(utterances).values()]
     first = [a for a, _ in pairs]
     second = {s: {a.id: hyps[b.id] for a, b in pairs} for s, hyps in real_hyps.items()}
     return rq2_tables(first, real_hyps, second, pack, excluded_splits)
@@ -207,7 +212,9 @@ def selection_table(
     """Real-speech WER on sentences the synthetic set kept versus rejected.
 
     If rejected sentences are much harder, the synthetic set is easier than
-    the real one for a reason that has nothing to do with TTS.
+    the real one for a reason that has nothing to do with TTS. Every
+    sentence not in ``kept_ids`` counts as rejected, so pass the synthetic
+    manifest of a full run, not a numeric-only one.
     """
     first_takes: dict[str, Utterance] = {}
     for utt in real:

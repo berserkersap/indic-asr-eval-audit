@@ -2,11 +2,9 @@
 
 import argparse
 import logging
-from collections import Counter
 from pathlib import Path
 
 from indic_asr_audit import __version__
-from indic_asr_audit.data import Utterance
 
 DEFAULT_DATA_DIR = Path("data")
 DEFAULT_SYSTEMS = Path("configs/systems.toml")
@@ -121,19 +119,13 @@ def _complete(dataset: str, names: list[str], ids: list[str]) -> dict[str, dict[
     return found
 
 
-def real_ceiling_sentences(utterances: list[Utterance]) -> set[str]:
-    """Sentence ids with at least two real recordings."""
-    counts = Counter(u.sentence_id for u in utterances)
-    return {sentence for sentence, n in counts.items() if n >= 2}
-
-
 def _rq2(args: argparse.Namespace) -> None:
     from indic_asr_audit.analysis import write_tables
     from indic_asr_audit.asr import load_systems
     from indic_asr_audit.data import read_manifest
     from indic_asr_audit.languages import get_language
     from indic_asr_audit.plots import plot_rq2
-    from indic_asr_audit.rq2 import real_ceiling, rq2_tables, selection_table
+    from indic_asr_audit.rq2 import real_ceiling, repeated_sentences, rq2_tables, selection_table
     from indic_asr_audit.synth import engine_of, related_systems
 
     pack = get_language(args.lang)
@@ -141,7 +133,7 @@ def _rq2(args: argparse.Namespace) -> None:
     excluded = {s: set(systems[s].exclude_splits) for s in systems}
     real_utts = read_manifest(_manifest_path(args.dataset))
     real_all = _complete(args.dataset, list(systems), [u.id for u in real_utts])
-    ceiling_utts = real_ceiling_sentences(real_utts)
+    ceiling_utts = set(repeated_sentences(real_utts))
     write_tables(real_ceiling(real_utts, real_all, pack, excluded), RESULTS / "rq2" / "ceiling")
     for name in args.synthetic:
         synthetic = read_manifest(_manifest_path(name))
