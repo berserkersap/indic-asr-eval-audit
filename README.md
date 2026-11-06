@@ -48,15 +48,18 @@ intervals:
   for every system on the held-out set (8 to 19 points across all subsets),
   because it deletes vowel signs and so splits words. It does not change the
   ranking.
-- **A synthetic test set from MMS-TTS keeps the ranking but not the error
-  level, and it is much harder on numbers.** On the 49 held-out sentences with
-  numbers that MMS-TTS could voice, WER rises by 7 to 12 points for MMS-1B and
-  both Whisper large models, clean or telephony (every interval excludes
-  zero). The numeric value error rises more, by 13 to 24 points (79 numbers;
-  Whisper large-v3 goes from 15% to 29%). No pair of systems changes order,
-  which matches what a second real speaker gives, and MMS-TTS does not favour
-  its sibling MMS-1B. But the five systems are far apart (WER 24% to 79%),
-  so this ranking test is an easy one.
+- **A synthetic test set from MMS-TTS keeps the order of the systems but not
+  their error level, and may be harder still on numbers.** On the 49 held-out
+  sentences with numbers that MMS-TTS could voice, WER rises by 7 to 12 points
+  for the three strongest systems (MMS-1B, Whisper large-v3 and
+  large-v3-turbo), clean or telephony; every interval excludes zero, the
+  closest by 1.9 points (intervals that ignore speaker dependence). Their
+  numeric value error rises by 13 to 24 points (79 numbers, no interval yet;
+  Whisper large-v3 goes from 15% to 29%). No pair of systems swaps order, as
+  with a second real speaker, though MMS-1B and Whisper large-v3 tie on the
+  clean set, and MMS-TTS does not favour its sibling MMS-1B. With five systems
+  the ranking test is weak: ten pairs, and the interval on Kendall tau reaches
+  0.60.
 
 ## Summary of results
 
@@ -174,8 +177,8 @@ Does the synthetic set rank systems the way real speech does? Kendall tau
 between the WER rankings on real and on other audio, with a 95% bootstrap
 interval. The yardstick, "second real recording", ranks the systems on one
 FLEURS speaker and compares with a second speaker reading the same sentence.
-"Same sentences" restricts a synthetic set to those sentences, so it compares
-like with like. A flip counts as significant only if the two systems differ on
+"Same sentences" restricts a synthetic set to those sentences; "all" uses every
+sentence it has. A flip counts as significant only if the two systems differ on
 real speech.
 
 <!-- rq2-agreement -->
@@ -196,6 +199,12 @@ real speech.
 | all with numbers (no MMS) | `mms-tts-telephony`, same sentences | 156 | 4 | 1.00 [1.00, 1.00] | none | 0 |
 | all with numbers (no MMS) | `mms-tts-telephony`, all | 299 | 4 | 1.00 [1.00, 1.00] | none | 0 |
 <!-- /rq2-agreement -->
+
+MMS-1B is left out of the "all with numbers" rows because it was trained on
+FLEURS train, and out of the "none from the TTS family" rows because it shares
+a family with MMS-TTS. "Same sentences" has 22 of the ceiling's 26 held-out
+sentences because the TTS step left 4 out. An interval of [1.00, 1.00] means
+that no resample changed the order, not that tau is measured exactly.
 
 Per utterance: the Spearman correlation between an utterance's WER on real
 speech and on the other audio, median over systems (range in brackets), on
@@ -226,23 +235,27 @@ splits only):
 Reading these tables:
 
 - Synthetic speech is harder than real speech for the three strongest
-  systems, and telephony coding adds up to 4 more points. For Whisper small
-  and medium the change is lost in their repetition loops (intervals of ±15 to
-  ±30 points).
-- The rise in numeric value error is larger than the rise in WER, so MMS-TTS
-  speaks number words in a way the systems find harder than other words. The
-  numeric error change has no interval yet, and whether the cause is the
-  TTS pronunciation or the systems has not been checked by listening.
+  systems (MMS-1B, Whisper large-v3 and large-v3-turbo); telephony coding adds
+  up to 4 more points. For Whisper small and medium the intervals are wide
+  (about ±15 to ±27 points), probably because of their repetition loops (see
+  Limitations).
+- The numeric value error rises more than WER does, which suggests that
+  MMS-TTS speaks number words in a way the systems find especially hard. This
+  is not established: the change has no interval, it rests on 79 numbers, and
+  no one has listened to the clips to separate TTS pronunciation from
+  recognition errors.
 - The one Kendall tau below 1 (0.95, clean, all sentences) is a tie: MMS-1B
   and Whisper large-v3 both score 34.5%. It is not a flipped pair.
-- Which sentences are hard: on held-out sentences, synthetic WER tracks real
-  WER about as well as a second speaker does (median ρ 0.38–0.39 against
-  0.37); on all sentences with numbers, slightly less well (0.39 against 0.47).
-- The sentences left out (mostly with Latin-letter terms such as "H5N1") are
-  harder on real speech for every system, so the synthetic set comes from
-  slightly easier sentences. The gaps above are paired on the same sentences,
-  so they are not affected, but synthetic WER should not be compared with WER
-  on the full real set.
+- Per-utterance difficulty: the median ρ is similar for synthetic audio and
+  for a second speaker on held-out sentences (0.38–0.39 against 0.37) and
+  lower on all sentences with numbers (0.39 against 0.47). There is no
+  interval, single systems go as low as −0.11, and the sentence sets differ
+  slightly (22 against 26 held-out sentences).
+- The 39 sentences left out (37 for Latin-letter terms such as "H5N1") have
+  higher real-speech WER for every system, by 2 to 37 points (no interval).
+  The gaps above are measured only on the kept sentences, so they may not
+  carry over to the left-out ones, and synthetic WER should not be compared
+  with WER on the full real set.
 
 ## Why this matters
 
@@ -351,16 +364,15 @@ configured but has not run yet.
   transcripts in `results/transcripts/` are the reproducible artifact.
 - RQ2 uses one TTS engine with one speaker (MMS-TTS; seeds vary only the
   prosody), so it shows what this voice does, not what synthetic speech does
-  in general. With five well-separated systems, ranking agreement is a weak
-  test; it says nothing about telling close systems apart.
+  in general. Five systems give only ten pairs to flip and a wide interval on
+  Kendall tau, so ranking agreement here is a weak test.
 
 ## Research log
 
 | Date | Update |
 |---|---|
 | 2026-11-06 | Metrics, number parser and normaliser; FLEURS Hindi set; LangGraph synthesis pipeline and RQ2 analysis. RQ1 results for five open systems: the stock Whisper normaliser lowers Hindi WER by 8 to 12 points, and WER and the numeric value error rank MMS-1B against the Whisper large models in opposite orders. |
-
-| 2026-11-07 | RQ2 with MMS-TTS, clean and telephony, five open systems: the ranking holds, but WER rises by 7 to 12 points for the strongest systems and the numeric value error by 13 to 24 points. |
+| 2026-11-07 | RQ2 with MMS-TTS, clean and telephony, five open systems: the order of the systems holds, but WER rises by 7 to 12 points for the three strongest systems and their numeric value error by 13 to 24 points. |
 
 Next:
 
