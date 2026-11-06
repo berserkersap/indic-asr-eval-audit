@@ -71,20 +71,23 @@ cluster-bootstrap intervals:
   [-2.4, +3.5] and +1.6 [-2.0, +4.5] points from `whisper` to `basic` (not
   significant), and 1 to 3 points across all subsets (significant on the
   controls and, for `verbatim`, on all utterances with numbers).
-- **The TTS engine decides whether a synthetic test set looks harder or
-  easier than real speech, and it can reorder systems.** On the 49 held-out
+- **The TTS engine sets whether a synthetic test set looks harder or easier
+  than real speech, and it can reorder systems.** On the 49 held-out
   sentences with numbers, MMS-TTS audio raises WER by 7 to 12 points for the
   three strongest systems (MMS-1B, Whisper large-v3 and large-v3-turbo), clean
   or telephony, while Sarvam's Bulbul lowers it by 7 to 9 points for the two
   Whisper large models and by only about 3.5 for MMS-1B (not significant).
   With Bulbul, Whisper large-v3 overtakes MMS-1B, a flip that is significant
-  on the 49 sentences (Kendall tau 0.80 against real speech, where a second
-  real recording gives 1.00); with MMS-TTS no pair swaps order. On numbers,
+  on the 49 sentences but not on the 22 that also have a second real
+  recording (Kendall tau 0.80 against real speech, where a second real
+  recording gives 1.00); with MMS-TTS no pair swaps order. This is one
+  flipped pair, with one engine. On numbers,
   MMS-TTS raises the numeric value error by 13 to 24 points for the three
   strongest systems, while Bulbul changes it by -4 to +3 points for the
   Whisper large models but raises it by 10 to 11 for MMS-1B (79 numbers, no
   intervals). Intervals ignore speaker dependence, five systems make a weak
-  ranking test, and each engine is one sample of what synthetic speech does.
+  ranking test, the engines differ in more than one way (one voice against
+  eight), and each is one sample of what synthetic speech does.
 
 ## Summary of results
 
@@ -337,12 +340,14 @@ Reading these tables:
   clean, +7.2 [-0.6, +14.5] telephony). For Whisper small and medium the
   intervals are wide (about ±15 to ±27 points), probably because of their
   repetition loops (see Limitations).
-- Bulbul speech is easier than real speech for every system: by 7 to 9
-  points for the Whisper large models, 16 to 28 for Whisper small and medium,
-  and about 3.5 for MMS-1B, whose intervals reach zero. On the 22 sentences
-  that have a second real recording it lowers the WER of the three strongest
-  systems by 5.9 to 11.1 points, against -2.3 to -3.7 for that recording. Why
-  the Whisper models gain most is not established; no one has listened to
+- Bulbul speech is easier than real speech for every system on average: by
+  7 to 9 points for the Whisper large models, 16 to 28 for Whisper small and
+  medium, and about 3.5 for MMS-1B (the intervals for MMS-1B, and for Whisper
+  small on telephony, include zero). On 22 of the 26 sentences that have a
+  second real recording it lowers the WER of the three strongest systems by
+  5.9 to 11.1 points (intervals exclude zero), against -2.3 to -3.7 for that
+  recording on all 26 (intervals include zero). Why Whisper small and medium
+  gain most, and MMS-1B least, is not established; no one has listened to
   the clips.
 - With MMS-TTS the numeric value error rises more than WER does, which
   suggests that MMS-TTS speaks number words in a way the systems find
@@ -355,8 +360,9 @@ Reading these tables:
   pair. Bulbul: tau is 0.80 in every held-out row because Whisper large-v3
   and MMS-1B swap places. The swap counts as significant on all 49 sentences,
   where the two differ on real speech, but not on the 22 same sentences.
-- Per-utterance difficulty: the median ρ for synthetic audio is close to that
-  for a second recording, 0.31 to 0.39 against 0.37 on held-out sentences and
+- Per-utterance difficulty: the median ρ for synthetic audio is similar to
+  that for a second recording, 0.31 to 0.39 against 0.37 on held-out sentences
+  and
   0.39 to 0.47 against 0.47 on all sentences with numbers. There is no
   interval, single systems go as low as -0.11, and the sentence sets differ
   slightly (22 against 26 held-out sentences).
@@ -503,7 +509,7 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
 | 2026-11-07 | RQ2 with MMS-TTS, clean and telephony, five open systems: the order of the systems holds, but WER rises by 7 to 12 points for the three strongest systems and their numeric value error by 13 to 24 points. |
 | 2026-11-07 | Saaras v4 (queried on 6 November UTC) in `transcribe` and `verbatim` modes on real speech: number normalisation removes at least three quarters of the WER gap between the two modes. |
 | 2026-11-07 | Review fixes: the WER share of numbers is counted on the alignment (4.0 points for MMS, not at most 3.0); lenient matching forgives one number per word. |
-| 2026-11-07 | RQ2 with Bulbul as a second TTS engine: its audio is easier than real speech, most for the Whisper models, and Whisper large-v3 overtakes MMS-1B. The TTS engine, not only the ASR system, sets the synthetic result. |
+| 2026-11-07 | RQ2 with Bulbul as a second TTS engine: its audio is easier than real speech, least so for MMS-1B, and Whisper large-v3 overtakes MMS-1B. The TTS engine, not only the ASR system, sets the synthetic result. |
 
 Next:
 
