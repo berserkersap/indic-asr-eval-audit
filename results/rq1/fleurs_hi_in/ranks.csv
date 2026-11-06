@@ -1,0 +1,10 @@
+subset,versus,n_systems,kendall_tau,pairs_flipped,flipped
+held_out_numeric,whisper vs basic,5,1.0,0,
+held_out_numeric,whisper vs spelling,5,1.0,0,
+held_out_numeric,whisper vs numbers,5,1.0,0,
+numeric,whisper vs basic,4,1.0,0,
+numeric,whisper vs spelling,4,1.0,0,
+numeric,whisper vs numbers,4,1.0,0,
+control,whisper vs basic,5,1.0,0,
+control,whisper vs spelling,5,1.0,0,
+control,whisper vs numbers,5,1.0,0,
