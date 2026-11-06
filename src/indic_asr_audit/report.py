@@ -65,16 +65,29 @@ def ranks_table(ranks: pd.DataFrame) -> str:
     return _markdown(table)
 
 
+def disagreement_table(table: pd.DataFrame) -> str:
+    """Pairs of systems that WER and the numeric value error rank oppositely."""
+    shown = table[["subset", "n_systems", "kendall_tau", "pairs_reversed", "significant"]].copy()
+    shown["kendall_tau"] = [f"{t:.2f}" for t in shown["kendall_tau"]]
+    shown["significant"] = [
+        str(v).replace(" ", ", ") if str(v) != "nan" else "" for v in shown["significant"]
+    ]
+    shown.columns = ["subset", "systems", "Kendall tau", "pairs reversed", "significant reversals"]
+    return _markdown(shown)
+
+
 def render_rq1(results_dir: Path, subset: str = "held_out_numeric") -> dict[str, str]:
     """Markdown blocks for the README, keyed by marker name."""
     scores = pd.read_csv(results_dir / "scores.csv")
     steps = pd.read_csv(results_dir / "level_steps.csv")
     ranks = pd.read_csv(results_dir / "ranks.csv")
+    disagreement = pd.read_csv(results_dir / "wer_vs_numeric.csv")
     return {
         "rq1-wer": wer_table(scores, subset),
         "rq1-wer-all-numeric": wer_table(scores, "numeric"),
         "rq1-steps": steps_table(steps, subset),
         "rq1-ranks": ranks_table(ranks),
+        "rq1-disagreement": disagreement_table(disagreement),
     }
 
 

@@ -22,7 +22,7 @@ from indic_asr_audit.data import Utterance
 from indic_asr_audit.languages.base import LanguagePack
 from indic_asr_audit.metrics import Counts, char_counts, numeric_counts, word_counts
 from indic_asr_audit.normalize import Level, normalize
-from indic_asr_audit.stats import bootstrap_rate, paired_difference
+from indic_asr_audit.stats import bootstrap_rate, corpus_rate, paired_difference
 
 # "numeric" and "control" mean the reference does or does not contain a digit;
 # a control may still contain a number written as a word. "held_out_numeric"
@@ -88,10 +88,11 @@ def rq1_tables(
             training split of a model trained on it.
 
     Returns:
-        Tables named "scores", "level_steps", "ranks" and "convention".
+        Tables named "scores", "level_steps", "ranks", "convention" and
+        "wer_vs_numeric".
     """
     levels = list(Level)
-    scores, steps, ranks = [], [], []
+    scores, steps, ranks, disagreement = [], [], [], []
     scored: dict[tuple[str, str], dict[Level, Scored]] = {}
 
     for subset, keep in SUBSETS.items():
@@ -103,6 +104,7 @@ def rq1_tables(
         ]
         clusters = [u.sentence_id for u in subset_utts]
         subset_scores = []
+        numeric_by_system: dict[str, list[Counts]] = {}
         for system in systems:
             by_level = {
                 level: score_system(subset_utts, transcripts[system], pack, level)
@@ -115,6 +117,7 @@ def rq1_tables(
             numbers = [numeric_counts(u.text, transcripts[system][u.id], pack) for u in subset_utts]
             if any(c.total for c in numbers):
                 subset_scores.append(_row(system, subset, "-", "numeric_error", numbers, clusters))
+                numeric_by_system[system] = numbers
             for before, after in itertools.pairwise(levels):
                 diff = paired_difference(by_level[after].words, by_level[before].words, clusters)
                 steps.append(
@@ -133,6 +136,11 @@ def rq1_tables(
             wer = pd.DataFrame([r for r in subset_scores if r["metric"] == "wer"])
             wide = wer.pivot(index="system", columns="level", values="estimate")
             ranks += [{"subset": subset, **row} for row in _rank_changes(wide)]
+        if len(numeric_by_system) >= 2:
+            wer_counts = {s: scored[(s, subset)][Level.NUMBERS].words for s in numeric_by_system}
+            disagreement.append(
+                {"subset": subset, **metric_disagreement(wer_counts, numeric_by_system, clusters)}
+            )
 
     convention = _convention_gap(scored, levels, utterances)
     return {
@@ -140,6 +148,39 @@ def rq1_tables(
         "level_steps": pd.DataFrame(steps),
         "ranks": pd.DataFrame(ranks),
         "convention": convention,
+        "wer_vs_numeric": pd.DataFrame(disagreement),
+    }
+
+
+def metric_disagreement(
+    wer: dict[str, list[Counts]], numeric: dict[str, list[Counts]], clusters: list[str]
+) -> dict[str, object]:
+    """Do WER and the numeric value error rank the systems the same way?
+
+    A pair of systems is reversed when one has the lower WER but the higher
+    numeric error. The reversal is significant when both paired differences
+    have intervals that exclude zero.
+    """
+    systems = list(wer)
+    wer_rates = {s: corpus_rate(wer[s]) for s in systems}
+    num_rates = {s: corpus_rate(numeric[s]) for s in systems}
+    reversed_pairs, significant = [], []
+    for a, b in itertools.combinations(systems, 2):
+        if (wer_rates[a] - wer_rates[b]) * (num_rates[a] - num_rates[b]) >= 0:
+            continue
+        reversed_pairs.append(f"{a}/{b}")
+        d_wer = paired_difference(wer[a], wer[b], clusters)
+        d_num = paired_difference(numeric[a], numeric[b], clusters)
+        if all(d.low > 0 or d.high < 0 for d in (d_wer, d_num)):
+            significant.append(f"{a}/{b}")
+    tau = kendalltau([wer_rates[s] for s in systems], [num_rates[s] for s in systems]).statistic
+    return {
+        "n_systems": len(systems),
+        "kendall_tau": float(tau),
+        "pairs_reversed": len(reversed_pairs),
+        "significant_reversals": len(significant),
+        "reversed": " ".join(reversed_pairs),
+        "significant": " ".join(significant),
     }
 
 

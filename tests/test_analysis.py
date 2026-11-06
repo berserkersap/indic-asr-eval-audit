@@ -99,3 +99,24 @@ def test_rank_table_lists_flipped_pairs() -> None:
     assert int(row["n_systems"].iloc[0]) == 2
     assert int(row["pairs_flipped"].iloc[0]) == 1
     assert float(row["kendall_tau"].iloc[0]) < 0
+
+
+def test_wer_and_numeric_error_can_rank_systems_in_opposite_orders() -> None:
+    # "numbers_wrong" gets every word right except the numbers; "words_wrong"
+    # gets the numbers right but mishears other words.
+    numbers_wrong = {
+        "u0": "उसने 35 किताबें खरीदीं",
+        "u1": "कुल 900000 सैनिक थे",
+        "u2": "वह घर गया",
+        "u3": "यह 16वीं सदी की बात है",
+    }
+    words_wrong = {
+        "u0": "उसमें 53 कीताबें खरीदी",
+        "u1": "कुल 800000 सेनिक थी",
+        "u2": "वो घर गई",
+        "u3": "ये 15वीं सदि की बाद हैं",
+    }
+    tables = rq1_tables(UTTERANCES, {"a": numbers_wrong, "b": words_wrong}, HINDI, {})
+    row = tables["wer_vs_numeric"].set_index("subset").loc["numeric"]
+    assert row["pairs_reversed"] == 1
+    assert row["kendall_tau"] == -1.0
