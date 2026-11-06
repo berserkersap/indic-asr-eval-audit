@@ -1,3 +1,6 @@
+import itertools
+import random
+
 import pytest
 
 from indic_asr_audit.languages import get_language
@@ -36,6 +39,19 @@ def values(text: str) -> list[str]:
         ("पंद्रहवीं सदी", ["15"]),
         ("बीसवां", ["20"]),
         ("two thousand twenty", ["2020"]),
+        ("उन्नीस सौ सैंतालीस", ["1947"]),
+        ("एक लाख दो हज़ार तीन सौ चार", ["102304"]),
+        ("तीन दशमलव पांच लाख", ["350000"]),
+        ("शून्य शून्य सात", ["0", "0", "7"]),
+        ("शून्य पांच", ["0", "5"]),
+        ("तीन सौ चार सौ", ["300", "400"]),
+        ("पैतीस", ["35"]),
+        ("बाइस", ["22"]),
+        ("पाच", ["5"]),
+        ("पंद्रहवी सदी", ["15"]),
+        ("साढ़े", []),
+        ("साढ़े साढ़े तीन", ["3.5"]),
+        ("दशमलव", []),
     ],
 )
 def test_spoken_numbers(text: str, expected: list[str]) -> None:
@@ -56,6 +72,17 @@ def test_spoken_numbers(text: str, expected: list[str]) -> None:
         ("1.50", ["1.5"]),
         ("15वीं सदी", ["15"]),
         ("10:00-11:30", ["10", "11", "30"]),
+        ("10:00:30", ["10", "0", "30"]),
+        ("15.08.1947", ["15", "8", "1947"]),
+        ("1,2,3", ["1", "2", "3"]),
+        ("2,3 लोग", ["2", "3"]),
+        ("₹500", ["500"]),
+        ("में2 लोग", ["2"]),
+        ("शून्य 5", ["0", "5"]),
+        ("19 सौ 47", ["1947"]),
+        ("दो सौ 5", ["205"]),
+        ("दो हज़ार 21", ["2021"]),
+        ("3 दशमलव 5", ["3.5"]),
     ],
 )
 def test_written_numbers(text: str, expected: list[str]) -> None:
@@ -85,3 +112,14 @@ def test_format_value(numerator: int, denominator: int, expected: str) -> None:
     from fractions import Fraction
 
     assert format_value(Fraction(numerator, denominator)) == expected
+
+
+def test_parser_never_fails_on_random_tokens() -> None:
+    vocabulary = [*HINDI.number_words, "5", "2.5", "1900", "x", "और"]
+    rng = random.Random(0)
+    for _ in range(3000):
+        tokens = rng.choices(vocabulary, k=rng.randint(0, 12))
+        spans = find_numbers(tokens, HINDI)
+        bounds = [(s.start, s.end) for s in spans]
+        assert all(0 <= a < b <= len(tokens) for a, b in bounds)
+        assert all(b <= c for (_, b), (c, _) in itertools.pairwise(bounds))

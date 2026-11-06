@@ -33,6 +33,10 @@ def test_char_counts_ignore_spaces() -> None:
         ("35mm और 35mm", "35 एमएम", Counts(1, 2)),
         ("15वीं सदी", "पंद्रहवीं सदी", Counts(0, 1)),
         ("एक आदमी", "दो आदमी", Counts(0, 0)),  # no digits in the reference
+        ("53 और 53", "53", Counts(1, 2)),
+        ("₹500 दिए", "पांच सौ रुपये दिए", Counts(0, 1)),
+        # Known limitation: the article "ek" matches a reference "1".
+        ("1 किताब", "मेरे पास एक कलम", Counts(0, 1)),
     ],
 )
 def test_numeric_counts(reference: str, hypothesis: str, expected: Counts) -> None:

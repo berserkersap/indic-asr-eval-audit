@@ -48,3 +48,14 @@ def test_paired_difference_detects_planted_gap() -> None:
 def test_length_mismatch_raises() -> None:
     with pytest.raises(ValueError, match="same length"):
         bootstrap_rate([Counts(1, 1)], ["a", "b"])
+
+
+def test_empty_input_raises() -> None:
+    with pytest.raises(ValueError, match="nothing to resample"):
+        bootstrap_rate([], [])
+
+
+@pytest.mark.parametrize("confidence", [0.0, 1.0, 1.5])
+def test_confidence_must_be_a_probability(confidence: float) -> None:
+    with pytest.raises(ValueError, match="confidence"):
+        bootstrap_rate([Counts(1, 2)], ["a"], confidence=confidence)

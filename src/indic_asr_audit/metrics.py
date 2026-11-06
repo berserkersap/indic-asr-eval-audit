@@ -32,7 +32,12 @@ def word_counts(reference: str, hypothesis: str) -> Counts:
 
 
 def char_counts(reference: str, hypothesis: str) -> Counts:
-    """Character edit distance between two normalised strings, spaces excluded."""
+    """Character edit distance between two normalised strings.
+
+    Characters are Unicode code points, not grapheme clusters, and spaces are
+    excluded so that word splitting ("raaton-raat" vs "raaton raat") costs
+    nothing.
+    """
     ref, hyp = reference.replace(" ", ""), hypothesis.replace(" ", "")
     if not ref:
         return Counts(errors=len(hyp), total=0)
@@ -48,6 +53,9 @@ def numeric_counts(reference: str, hypothesis: str, pack: LanguagePack) -> Count
     value and order-free (a multiset), so "53" is matched by "tirepan" or
     "53" anywhere in the hypothesis. Extra numbers in the hypothesis are not
     counted; WER already penalises them.
+
+    Matching is lenient in two known ways: the article "ek" and the verb
+    "do" (give) parse as 1 and 2, and leading zeros are dropped (007 is 7).
     """
     ref_spans = find_numbers(numeric_tokens(reference, pack), pack)
     wanted = Counter(s.value for s in ref_spans if s.written_as_digits)

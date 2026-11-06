@@ -40,6 +40,8 @@ class LanguagePack:
         ordinal_suffixes: Suffixes that turn a number word into an ordinal,
             e.g. Hindi "vin" in "pandrahvin" (15th).
         symbols: Symbols replaced by a word before scoring, e.g. "%".
+        prefix_symbols: Symbols written before a number but read after it,
+            e.g. "₹" in "₹500", read "500 rupaye".
         spelling_folds: (regex, replacement) pairs that merge accepted
             spelling variants, applied after Unicode NFC.
     """
@@ -54,6 +56,7 @@ class LanguagePack:
     decimal_points: frozenset[str] = frozenset()
     ordinal_suffixes: tuple[str, ...] = ()
     symbols: Mapping[str, str] = field(default_factory=dict)
+    prefix_symbols: Mapping[str, str] = field(default_factory=dict)
     spelling_folds: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
@@ -87,7 +90,8 @@ class LanguagePack:
         for kind, words in groups:
             for word, value in words.items():
                 key = self.canonical_word(word)
-                if key in lookup and lookup[key] != (kind, Fraction(value)):
-                    raise ValueError(f"{self.code}: '{word}' has two meanings")
-                lookup[key] = (kind, Fraction(value))
+                entry = (kind, Fraction(value))
+                if key in lookup and lookup[key] != entry:
+                    raise ValueError(f"{self.code}: '{word}' is both {lookup[key]} and {entry}")
+                lookup[key] = entry
         return lookup

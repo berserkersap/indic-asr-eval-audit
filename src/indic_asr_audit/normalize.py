@@ -11,8 +11,9 @@ Levels:
               and "300" score as the same word. Ordinal number words are
               split into number and suffix first.
 
-Clock times lose a ":00" minute part at every level except whisper, since
-"10:00" is read as "ten o'clock" with no spoken zero.
+The basic level also rewrites written forms that are read differently from
+how they are written: "₹500" is read "500 rupaye", "10:00" is read without
+the zero minutes, and "15.08.1947" is three numbers, not a decimal.
 """
 
 import re
@@ -32,21 +33,30 @@ class Level(StrEnum):
     NUMBERS = "numbers"
 
 
+# A letter, or any character of the Indic script blocks (so vowel signs count).
+_LETTER = r"[^\W\d_]|[\u0900-\u0dff]"
+
 _SPACES = re.compile(r"\s+")
-_DIGIT_GROUPING = re.compile(r"(?<=\d),(?=\d)")
-_ZERO_MINUTES = re.compile(r"(?<=\d):00(?!\d)")
-_DIGIT_LETTER = re.compile(r"(?<=\d)(?=[^\W\d_])|(?<=[^\W\d_])(?=\d)")
+_ZERO_WIDTH = re.compile("[\u200b-\u200d\ufeff]")
+# Thousands grouping only, Western (800,000) or Indian (8,00,000), never lists like "1,2,3".
+_GROUPED_NUMBER = re.compile(r"(?<![\d,])\d{1,3}(?:,\d{2,3})*,\d{3}(?!\d|,\d)")
+_ZERO_MINUTES = re.compile(r"(?<=\d):00(?![\d:])")
+_DOTTED_DATE = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?![\d.])")
+_DIGIT_LETTER = re.compile(rf"(?<=\d)(?={_LETTER})|(?<={_LETTER})(?=\d)")
 _DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")
-_DECIMAL_PLACEHOLDER = ""  # private-use character, never in real text
-_WHISPER_BRACKETS = re.compile(r"[<\[][^>\]]*[>\]]|\(([^)]+?)\)")
+_DECIMAL_PLACEHOLDER = "\ue000"  # private-use character, never in real text
+_WHISPER_BRACKETS = re.compile(r"[<\[][^>\]]*[>\]]")
+_WHISPER_PARENS = re.compile(r"\(([^)]+?)\)")
 
 
 def whisper_basic(text: str) -> str:
     """Reproduce Whisper's BasicTextNormalizer with its default arguments.
 
-    Source: openai/whisper, whisper/normalizers/basic.py (MIT licence).
+    Source: openai/whisper, whisper/normalizers/basic.py (MIT licence). The
+    only difference is that surrounding whitespace is stripped.
     """
     text = _WHISPER_BRACKETS.sub("", text.lower())
+    text = _WHISPER_PARENS.sub("", text)
     text = "".join(
         " " if unicodedata.category(char)[0] in "MSP" else char
         for char in unicodedata.normalize("NFKC", text)
@@ -55,13 +65,16 @@ def whisper_basic(text: str) -> str:
 
 
 def _basic(text: str, pack: LanguagePack) -> str:
-    text = unicodedata.normalize("NFC", text).lower()
+    text = _ZERO_WIDTH.sub("", unicodedata.normalize("NFC", text)).lower()
     if pack.native_digits:
         text = text.translate(str.maketrans(pack.native_digits, "0123456789"))
-    for symbol, word in pack.symbols.items():
+    text = _GROUPED_NUMBER.sub(lambda m: m.group().replace(",", ""), text)
+    for symbol, word in pack.prefix_symbols.items():
+        text = re.sub(rf"{re.escape(symbol)}\s*(\d+(?:\.\d+)?)", rf"\1 {word}", text)
+    for symbol, word in {**pack.prefix_symbols, **pack.symbols}.items():
         text = text.replace(symbol, f" {word} ")
-    text = _DIGIT_GROUPING.sub("", text)
     text = _ZERO_MINUTES.sub("", text)
+    text = _DOTTED_DATE.sub(r"\1 \2 \3", text)
     text = _DIGIT_LETTER.sub(" ", text)
     text = _DECIMAL_POINT.sub(_DECIMAL_PLACEHOLDER, text)
     text = "".join(" " if unicodedata.category(char)[0] in "PS" else char for char in text)
@@ -79,7 +92,7 @@ def normalize(text: str, pack: LanguagePack, level: Level) -> str:
     text = pack.fold(text)
     if level is Level.SPELLING:
         return text
-    return " ".join(replace_numbers(numeric_tokens(text, pack), pack))
+    return " ".join(replace_numbers(split_ordinals(text.split(), pack), pack))
 
 
 def numeric_tokens(text: str, pack: LanguagePack) -> list[str]:

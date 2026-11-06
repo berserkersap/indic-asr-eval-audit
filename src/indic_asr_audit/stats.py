@@ -1,7 +1,13 @@
 """Corpus error rates with cluster-bootstrap confidence intervals.
 
 Utterances that share a sentence (the same text read by several speakers) are
-not independent, so resampling is done over clusters, not utterances.
+not independent, so resampling is done over clusters, not utterances. A
+speaker who reads several sentences also links them; FLEURS has no speaker
+ids, so that dependence is not modelled and the intervals may be a little
+narrow.
+
+Resamples with nothing to score (a zero denominator) are dropped before the
+percentiles are taken.
 """
 
 from collections.abc import Sequence
@@ -35,6 +41,8 @@ def _cluster_sums(
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     if len(counts) != len(clusters):
         raise ValueError("counts and clusters must have the same length")
+    if not counts:
+        raise ValueError("nothing to resample")
     _, index = np.unique(np.asarray(clusters), return_inverse=True)
     errors = np.bincount(index, weights=[c.errors for c in counts])
     totals = np.bincount(index, weights=[c.total for c in counts])
@@ -47,6 +55,8 @@ def _resample_index(n_clusters: int, n_resamples: int, seed: int) -> NDArray[np.
 
 
 def _interval(estimate: float, samples: NDArray[np.float64], confidence: float) -> Interval:
+    if not 0 < confidence < 1:
+        raise ValueError(f"confidence must be in (0, 1), got {confidence}")
     tail = (1 - confidence) / 2 * 100
     low, high = np.nanpercentile(samples, [tail, 100 - tail])
     return Interval(estimate, float(low), float(high))

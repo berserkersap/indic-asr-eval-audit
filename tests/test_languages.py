@@ -16,7 +16,7 @@ def test_every_value_below_100_has_a_word(pack: LanguagePack) -> None:
 
 def test_conflicting_word_is_rejected() -> None:
     pack = LanguagePack(code="xx", name="Test", native_digits="", units={"a": 1}, scales={"a": 100})
-    with pytest.raises(ValueError, match="two meanings"):
+    with pytest.raises(ValueError, match="is both"):
         _ = pack.number_words
 
 

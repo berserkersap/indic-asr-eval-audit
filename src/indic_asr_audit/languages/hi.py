@@ -1,5 +1,6 @@
 """Hindi language pack (Devanagari), with English number words for code-mixed speech."""
 
+import re
 from fractions import Fraction
 
 from indic_asr_audit.languages.base import LanguagePack
@@ -140,12 +141,32 @@ _ENGLISH_UNITS: dict[int, str] = {
     90: "ninety",
 }
 
+_NASAL = "\u0902"  # anusvara
+_CHANDRABINDU = "\u0901"
+_NUKTA = "\u093c"
+
+
+def _with_variants(word: str) -> set[str]:
+    """Add the spellings ASR systems often produce for a number word.
+
+    The nasal sign is often dropped (पैंतीस / पैतीस) and a final long ई is
+    often written short (बाईस / बाइस).
+    """
+    variants = {word, word.replace(_NASAL, "")}
+    return variants | {re.sub("ईस$", "इस", v) for v in variants}
+
+
 HINDI = LanguagePack(
     code="hi",
     name="Hindi",
     native_digits="०१२३४५६७८९",
     units={
-        **{word: value for value, words in _HINDI_UNITS.items() for word in words},
+        **{
+            variant: value
+            for value, words in _HINDI_UNITS.items()
+            for word in words
+            for variant in _with_variants(word)
+        },
         **{word: value for value, word in _ENGLISH_UNITS.items()},
     },
     scales={
@@ -153,7 +174,6 @@ HINDI = LanguagePack(
         "हज़ार": 1_000,
         "लाख": 100_000,
         "करोड़": 10_000_000,
-        "करोड": 10_000_000,
         "अरब": 1_000_000_000,
         "hundred": 100,
         "thousand": 1_000,
@@ -162,21 +182,18 @@ HINDI = LanguagePack(
         "million": 1_000_000,
         "billion": 1_000_000_000,
     },
-    fractions={"डेढ़": Fraction(3, 2), "डेढ": Fraction(3, 2), "ढाई": Fraction(5, 2)},
-    offsets={
-        "सवा": Fraction(1, 4),
-        "साढ़े": Fraction(1, 2),
-        "साढे": Fraction(1, 2),
-        "पौने": Fraction(-1, 4),
-    },
+    fractions={"डेढ़": Fraction(3, 2), "ढाई": Fraction(5, 2)},
+    offsets={"सवा": Fraction(1, 4), "साढ़े": Fraction(1, 2), "पौने": Fraction(-1, 4)},
     decimal_points=frozenset({"दशमलव", "point", "पॉइंट"}),
-    ordinal_suffixes=("वां", "वीं", "वें"),
-    symbols={"%": "प्रतिशत", "₹": "रुपये"},
+    # Longest first, so "वीं" is split off before "वी".
+    ordinal_suffixes=("वीं", "वां", "वें", "वी", "वा", "वे"),
+    symbols={"%": "प्रतिशत"},
+    prefix_symbols={"₹": "रुपये"},
     spelling_folds=(
-        # Nukta on Perso-Arabic consonants is often dropped (ज़्यादा / ज्यादा).
-        # ड़ and ढ़ are distinct sounds in Hindi, so their nukta is kept.
-        ("([कखगजफ])़", r"\1"),
+        # The nukta is often dropped in writing and by ASR (ज़्यादा / ज्यादा,
+        # पढ़ना / पढना); almost no Hindi word pairs differ by it alone.
+        (_NUKTA, ""),
         # Chandrabindu and anusvara are used interchangeably (पाँच / पांच).
-        ("ँ", "ं"),
+        (_CHANDRABINDU, _NASAL),
     ),
 )
