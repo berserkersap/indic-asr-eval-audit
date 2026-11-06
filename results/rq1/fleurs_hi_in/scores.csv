@@ -78,7 +78,7 @@ whisper-small,numeric,spelling,cer,0.5874,0.5356,0.6473,523
 whisper-small,numeric,numbers,wer,0.836,0.7693,0.9123,523
 whisper-small,numeric,numbers,cer,0.5857,0.5334,0.6457,523
 whisper-small,numeric,-,numeric_error,0.7205,0.6771,0.7631,523
-whisper-small,numeric,-,numeric_error_lenient,0.6857,0.6407,0.7301,523
+whisper-small,numeric,-,numeric_error_lenient,0.687,0.6426,0.7318,523
 whisper-medium,numeric,whisper,wer,0.3554,0.3324,0.3833,523
 whisper-medium,numeric,whisper,cer,0.2611,0.234,0.2934,523
 whisper-medium,numeric,basic,wer,0.4655,0.4429,0.4929,523

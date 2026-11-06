@@ -22,7 +22,7 @@ Two terms used throughout: the **numeric value error** is the share of numbers
 written as digits in the reference whose value is missing from the
 hypothesis, after spoken numbers on both sides are parsed ("तिरेपन" and "53"
 are the same value). **Held-out** utterances are FLEURS test and dev, which
-MMS was not trained on (Whisper's training data is not public, so overlap
+MMS was not fine-tuned on (Whisper's training data is not public, so overlap
 cannot be ruled out).
 
 ## Key takeaway
@@ -42,18 +42,21 @@ cluster-bootstrap intervals:
   intervals are wide, but where numbers matter, WER alone would pick the wrong
   one of these two systems.
 - **WER can barely see numbers.** Numbers are 6% of the reference words, so
-  even missing half of them costs MMS at most 3.0 WER points. For the open
-  systems, normalising spelling and numbers changes WER by only 1 to 3 points.
+  even missing half of them costs MMS only 4.0 WER points (word errors that
+  involve a word with a digit). For the open systems, normalising spelling and numbers changes WER by only 1 to 3 points.
 - **At least three quarters of the gap between Saaras v4's two output modes
-  is how numbers are written.** The same model on the same audio scores 5.9
+  is how numbers are written.** One model id (`saaras:v4`) on the same audio,
+  with only its `mode` setting changed, scores 5.9
   WER points worse in `verbatim` mode (numbers as spoken words) than in
   `transcribe` mode (numbers as digits) after basic normalisation, but only
   1.4 [0.4, 2.4] points worse once numbers are normalised (1.5 on all
   utterances with numbers). Without numbers the two modes differ by at most
   0.3 points, with intervals that include zero. The remaining 1.4 points are
-  partly a parser gap (see the convention table below), so three quarters is
-  a lower bound. Because both modes are one model, this comparison should largely hold even
-  if Saaras saw FLEURS in training.
+  partly a parser gap (see the note under the convention table), so three
+  quarters is a lower bound. Whether the two modes share weights is not
+  public; training on FLEURS would affect this comparison less than one
+  across models, though it could favour `transcribe`, whose digits match the
+  references.
 - **Saaras v4 has the lowest WER at every normalisation level** (held-out with
   numbers: 6.7% in `transcribe` mode at the `numbers` level, 11.6% at `basic`;
   6 of 135 numbers missed). Whether FLEURS was in its training data is not
@@ -62,9 +65,10 @@ cluster-bootstrap intervals:
 - **The stock Whisper normaliser makes Hindi WER look 8 to 12 points lower**
   for each open system on the held-out set (8 to 19 points across all
   subsets), because it deletes vowel signs and so splits words. It does not
-  change the ranking. For both Saaras modes the effect is small and not
-  significant (+0.9 [-2.4, +3.5] and +1.6 [-2.0, +4.5] points from `whisper`
-  to `basic`).
+  change the ranking. For Saaras it is smaller: on the held-out set +0.9
+  [-2.4, +3.5] and +1.6 [-2.0, +4.5] points from `whisper` to `basic` (not
+  significant), and 1 to 3 points across all subsets (significant on the
+  controls).
 - **A synthetic test set from MMS-TTS keeps the order of the systems but not
   their error level, and may be harder still on numbers.** On the 49 held-out
   sentences with numbers that MMS-TTS could voice, WER rises by 7 to 12 points
@@ -106,7 +110,8 @@ WER at the `numbers` level.
 Pairs of systems that WER (at the `numbers` level) and the numeric value error
 put in opposite order. A reversal is significant when the paired bootstrap
 intervals of both differences exclude zero; the two significant pairs share
-MMS, so they are not independent.
+MMS, so they are not independent. No correction is made for testing several
+pairs, but the two numeric-error intervals clear zero by at least 11 points.
 
 <!-- rq1-disagreement -->
 | subset | systems | Kendall tau | reversed, significant | reversed, not significant |
@@ -116,20 +121,20 @@ MMS, so they are not independent.
 <!-- /rq1-disagreement -->
 
 What drives each system's WER: outputs more than twice as long as the
-reference (Whisper repetition loops), WER without them, and the most WER points
-that missed numbers can account for (each missed number costs at most one word
-error).
+reference (Whisper repetition loops), WER without them, and the WER points
+from word errors that involve a word with a digit (a garbled number can cost
+several: "8 0 0" for 800 is three).
 
 <!-- rq1-diagnostics -->
-| system | WER | outputs over 2× reference length | WER without them | missed numbers | most WER points from numbers |
+| system | WER | outputs over 2× reference length | WER without them | missed numbers | WER points from number words |
 |---|---|---|---|---|---|
-| `saaras-v4-transcribe` | 6.7 | 0 | 6.7 | 6 of 135 | 0.3 |
-| `saaras-v4-verbatim` | 8.0 | 0 | 8.0 | 12 of 135 | 0.5 |
-| `mms-1b-all` | 23.1 | 0 | 23.1 | 67 of 135 | 3.0 |
-| `whisper-large-v3` | 26.7 | 0 | 26.7 | 25 of 135 | 1.1 |
-| `whisper-large-v3-turbo` | 31.3 | 1 | 28.8 | 32 of 135 | 1.4 |
-| `whisper-medium` | 48.9 | 1 | 44.2 | 48 of 135 | 2.1 |
-| `whisper-small` | 75.0 | 5 | 65.0 | 106 of 135 | 4.7 |
+| `saaras-v4-transcribe` | 6.7 | 0 | 6.7 | 6 of 135 | 0.4 |
+| `saaras-v4-verbatim` | 8.0 | 0 | 8.0 | 12 of 135 | 0.6 |
+| `mms-1b-all` | 23.1 | 0 | 23.1 | 67 of 135 | 4.0 |
+| `whisper-large-v3` | 26.7 | 0 | 26.7 | 25 of 135 | 1.2 |
+| `whisper-large-v3-turbo` | 31.3 | 1 | 28.8 | 32 of 135 | 1.7 |
+| `whisper-medium` | 48.9 | 1 | 44.2 | 48 of 135 | 2.5 |
+| `whisper-small` | 75.0 | 5 | 65.0 | 106 of 135 | 5.9 |
 <!-- /rq1-diagnostics -->
 
 Paired change in WER (percentage points) from one normalisation level to the
@@ -157,7 +162,7 @@ Only these rankings change between normalisation levels; in every other subset a
 | without numbers | whisper vs numbers | 7 | 0.90 | `saaras-v4-transcribe` vs `saaras-v4-verbatim` |
 <!-- /rq1-ranks -->
 
-Same model, same audio, two output conventions: WER of Saaras v4 in `verbatim`
+Same model id, same audio, two output conventions: WER of Saaras v4 in `verbatim`
 mode (numbers as spoken words) minus `transcribe` mode (numbers as digits),
 in percentage points, at each normalisation level:
 
@@ -166,8 +171,8 @@ in percentage points, at each normalisation level:
 |---|---|---|---|
 | `whisper` | +5.2 [+3.6, +7.0] | +6.2 [+5.4, +7.1] | -0.2 [-0.5, +0.1] |
 | `basic` | +5.9 [+3.9, +8.1] | +6.5 [+5.6, +7.5] | +0.1 [-0.5, +0.6] |
-| `spelling` | +5.8 [+3.8, +8.2] | +6.9 [+6.0, +7.9] | +0.3 [-0.0, +0.8] |
-| `numbers` | +1.4 [+0.4, +2.4] | +1.5 [+1.1, +2.0] | +0.3 [-0.0, +0.8] |
+| `spelling` | +5.8 [+3.8, +8.2] | +6.9 [+6.0, +7.9] | +0.3 [+0.0, +0.8] |
+| `numbers` | +1.4 [+0.4, +2.4] | +1.5 [+1.1, +2.0] | +0.3 [+0.0, +0.8] |
 <!-- /rq1-convention -->
 
 At the `numbers` level, 1.4 points remain on held-out utterances. On these
@@ -192,7 +197,7 @@ trained on FLEURS train):
 | `whisper-large-v3` | 21.6 [20.3, 23.3] | 30.6 [29.4, 31.8] | 28.8 [27.7, 30.0] | 27.9 [26.8, 29.1] | 16.8 [13.6, 20.2] | 16.2 [13.1, 19.5] |
 | `whisper-large-v3-turbo` | 24.9 [23.2, 26.8] | 35.2 [33.3, 37.6] | 33.6 [31.6, 36.0] | 32.7 [30.8, 35.1] | 27.0 [23.2, 31.2] | 25.6 [22.1, 29.6] |
 | `whisper-medium` | 35.5 [33.2, 38.3] | 46.6 [44.3, 49.3] | 45.3 [43.0, 48.0] | 44.5 [42.2, 47.2] | 31.9 [27.6, 36.5] | 30.6 [26.3, 34.9] |
-| `whisper-small` | 69.6 [64.4, 75.4] | 84.8 [78.2, 92.4] | 84.2 [77.6, 91.8] | 83.6 [76.9, 91.2] | 72.0 [67.7, 76.3] | 68.6 [64.1, 73.0] |
+| `whisper-small` | 69.6 [64.4, 75.4] | 84.8 [78.2, 92.4] | 84.2 [77.6, 91.8] | 83.6 [76.9, 91.2] | 72.0 [67.7, 76.3] | 68.7 [64.3, 73.2] |
 <!-- /rq1-wer-all-numeric -->
 
 ![WER by normalisation level](results/rq1/fleurs_hi_in/wer_by_level.png)
@@ -231,7 +236,8 @@ so `n` counts both utterances and sentences.
 Does the synthetic set rank systems the way real speech does? Kendall tau
 between the WER rankings on real and on other audio, with a 95% bootstrap
 interval. The yardstick, "second real recording", ranks the systems on one
-FLEURS speaker and compares with a second speaker reading the same sentence.
+recording of each sentence and compares with a second recording of the same
+sentence (FLEURS has no speaker ids).
 "Same sentences" restricts a synthetic set to those sentences; "all" uses every
 sentence it has. A flip counts as significant only if the two systems differ on
 real speech.
@@ -262,7 +268,7 @@ sentences because the TTS step left 4 out. An interval of [1.00, 1.00] means
 that no resample changed the order, not that tau is measured exactly.
 
 Per utterance: the Spearman correlation between an utterance's WER on real
-speech and on the other audio, median over systems (range in brackets), on
+speech and on the other audio, median over systems (range in parentheses), on
 the sentences that have a second real recording.
 
 <!-- rq2-rho -->
@@ -291,7 +297,11 @@ Reading these tables:
 
 - Synthetic speech is harder than real speech for the three strongest
   systems (MMS-1B, Whisper large-v3 and large-v3-turbo); telephony coding adds
-  up to 4 more points. For Whisper small and medium the intervals are wide
+  about 4 more points at most. For scale, a second real recording of the 26
+  held-out sentences that have one changes their WER by -2.3 to -3.7 points
+  (intervals include zero), while MMS-TTS on 22 of those sentences raises it
+  by 6 to 13 points; on those 22, MMS-1B's rise is not significant (+6.1
+  [-2.2, +13.7] clean, +7.2 [-0.6, +14.5] telephony). For Whisper small and medium the intervals are wide
   (about ±15 to ±27 points), probably because of their repetition loops (see
   Limitations).
 - The numeric value error rises more than WER does, which suggests that
@@ -370,9 +380,12 @@ companion speller parses back to the same value (tested on 5,500 values). The
 lenient variant also accepts a run of words within 0.25 normalised edit
 distance of the spelled-out value ("पंद्रा" for पंद्रह), but never a word
 with a digit ("1093" for 1963, "7त्तर" for 70) or words that read as another
-number ("तैंतीस", 33, for 35).
+number ("तैंतीस", 33, for 35). Each such run forgives one number. Only
+single-word slips are forgiven: in "उन्नीस सो अस्सी" for 1980 the other words
+read as numbers, so the slip in सौ still counts as missed.
 
-**Statistics.** Corpus rates are sums of errors over sums of reference words.
+**Statistics.** Corpus rates are sums of errors over sums of reference units
+(words, or numbers for the numeric value error).
 Intervals are 95% percentile intervals from 2,000 bootstrap resamples of
 sentences, not utterances, since FLEURS has up to three recordings per
 sentence. Differences between levels or systems are paired: both sides use the
@@ -408,10 +421,12 @@ configured but has not run yet.
   number written as a word.
 - The numeric value error matches values anywhere in the hypothesis. The
   article "एक" and the verb "दो" (give) parse as 1 and 2, which can hide a
-  missed number; leading zeros are dropped.
+  missed number; "अरब" (Arab) parses as 10⁹; leading zeros are dropped.
 - Whisper small and medium produce repetition loops on some utterances, which
   inflate their WER (see the table above); the ranking is the same without
-  them.
+  them. The Whisper runs predate the runner recording how many outputs hit the
+  token limit (`capped_outputs` in `.meta.json`), so the long-output count
+  stands in for it.
 - FLEURS has no speaker ids, so the bootstrap does not model speaker
   dependence and intervals may be slightly narrow.
 - Whisper and Saaras may have seen FLEURS test or dev data; this cannot be
@@ -419,7 +434,7 @@ configured but has not run yet.
   at the `numbers` level is under a third of the next system's (6.7% against
   23.1%), and which is not excluded from FLEURS train, so the "all with
   numbers" rows may score it on data it was trained on. Comparisons between
-  its two modes should be largely unaffected.
+  its two modes should be less affected.
 - The number parser reads English number words only in Latin script. Saaras
   in `verbatim` mode writes numbers spoken in English in Devanagari
   ("नाइनटीन सिक्सटी सेवन"), so they count as missed, which inflates its
