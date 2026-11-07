@@ -38,6 +38,9 @@ class Level(StrEnum):
 
 # A letter, or any character of the Indic script blocks (so vowel signs count).
 _LETTER = r"[^\W\d_]|[\u0900-\u0dff]"
+# A character inside a word: as _LETTER, but not the danda, double danda and
+# abbreviation sign (U+0964, U+0965, U+0970), which end a word as punctuation.
+_WORD_CHAR = r"[^\W\d_]|[\u0900-\u0963\u0966-\u096f\u0971-\u0dff]"
 
 _SPACES = re.compile(r"\s+")
 _ZERO_WIDTH = re.compile("[\u200b-\u200d\ufeff]")
@@ -74,20 +77,24 @@ def whisper_basic(text: str) -> str:
 def _dotted_time_patterns(
     before: tuple[str, ...], after: tuple[str, ...]
 ) -> tuple[re.Pattern[str], ...]:
-    """Patterns for "h.mm" beside a time word; group 1 is any text kept before it.
+    """Patterns for "h.mm" beside a time word.
 
-    Time words match whole words only, ignoring case: "barat 6.30" (a wedding
-    procession) is not "raat 6.30", and "6.30 istanbul" is not "6.30 IST".
+    Every pattern has three groups, so one replacement serves all: (1) text
+    kept before the time (empty when the time word follows), (2) the hour and
+    (3) the minutes. Time words match whole words only, ignoring case:
+    "barat 6.30" (a wedding procession) is not "raat 6.30", and "6.30
+    istanbul" is not "6.30 IST"; a danda after the word ("6.30 baje।") ends it.
     """
     clock = r"(?<![\d.])([01]?\d|2[0-3])\.([0-5]\d)(?![\d.])"
     patterns = []
     if after:
         words = "|".join(map(re.escape, after))
-        after_word = rf"(?=\s*(?:{words})(?!{_LETTER}))"
+        after_word = rf"(?=\s*(?:{words})(?!{_WORD_CHAR}))"
         patterns.append(re.compile(rf"()(?:{clock}){after_word}", re.IGNORECASE))
     if before:
         words = "|".join(map(re.escape, before))
-        patterns.append(re.compile(rf"((?<!{_LETTER})(?:{words})\s*)(?:{clock})", re.IGNORECASE))
+        before_word = rf"((?<!{_WORD_CHAR})(?:{words})\s*)"
+        patterns.append(re.compile(rf"{before_word}(?:{clock})", re.IGNORECASE))
     return tuple(patterns)
 
 

@@ -505,6 +505,11 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
   missed number; "अरब" (Arab) parses as 10⁹; leading zeros are dropped. A
   clock time written with a dot is read as a time only beside a time word
   ("6.30 बजे", "सुबह 6.30"); "11.20 पर" is still read as the decimal 11.2.
+  Only Whisper writes dotted times (Saaras writes "6:30", MMS-1B "6-30", and
+  both are split into two numbers anyway), so what is left of this costs
+  Whisper alone: on the held-out set, 2 of large-v3's 21 missed numbers and
+  4 of large-v3-turbo's 30, all in "सुबह 06:30 और 07:30" (the second time has
+  no time word beside it, and turbo writes "सुबा" for सुबह).
 - Whisper small and medium produce repetition loops on some utterances, which
   inflate their WER (see the table above); the ranking is the same without
   them. The Whisper runs predate the runner recording how many outputs hit the

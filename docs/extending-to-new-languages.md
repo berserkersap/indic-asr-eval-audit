@@ -21,6 +21,11 @@ Create `src/indic_asr_audit/languages/<code>.py`, using `hi.py` as the model.
 | `symbols` | Symbols read as a word after the number | `"%": "प्रतिशत"` |
 | `prefix_symbols` | Symbols written before a number but read after it | `"₹": "रुपये"` |
 | `spelling_folds` | `(regex, replacement)` pairs that merge accepted spellings | drop the nukta |
+| `time_words_before` | Words that mark the number after them as a clock time, so "h.mm" is not read as a decimal | `"सुबह"` (सुबह 6.30) |
+| `time_words_after` | Words that mark the number before them as a clock time | `"बजे"` (6.30 बजे) |
+
+The time words affect scoring. A pack without them never reads a dotted
+"h.mm" as a time, so "6.30" stays the decimal 6.3.
 
 Then register it in `languages/__init__.py`:
 

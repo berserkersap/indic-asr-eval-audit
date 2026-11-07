@@ -70,6 +70,11 @@ def test_whisper_level_matches_transformers() -> None:
         ("सुबह6.30", "सुबह 6 30"),  # letters and digits are split
         ("6.30 istanbul", "6.30 istanbul"),  # "ist" only as a whole word
         ("6.30 बजेगा", "6.30 बजेगा"),
+        ("6.30 बजे।", "6 30 बजे"),  # a danda ends the time word
+        ("6.30 बजे॥", "6 30 बजे"),
+        ("६.३० बजे", "6 30 बजे"),  # native digits
+        ("6.30 जीएमटी", "6 30 जीएमटी"),
+        ("6.30 p.m.", "6 30 p m"),
     ],
 )
 def test_basic_level(text: str, expected: str) -> None:

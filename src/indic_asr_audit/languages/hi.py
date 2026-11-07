@@ -198,9 +198,21 @@ HINDI = LanguagePack(
     ),
     spoken_units=tuple(_HINDI_UNITS[value][0] for value in range(100)),
     spoken_scales=((10_000_000, "करोड़"), (100_000, "लाख"), (1_000, "हज़ार"), (100, "सौ")),
-    # Morning, evening, night, afternoon; o'clock and time zones.
+    # Morning, evening, night, afternoon; o'clock, a.m./p.m. and time zones,
+    # in Latin and in the Devanagari spelling FLEURS uses ("09:19 बजे जीएमटी").
     time_words_before=("सुबह", "शाम", "रात", "दोपहर"),
-    time_words_after=("बजे", "बजकर", "gmt", "utc", "ist"),
+    time_words_after=(
+        "बजे",
+        "am",
+        "pm",
+        "a.m.",
+        "p.m.",
+        "gmt",
+        "utc",
+        "ist",
+        "जीएमटी",
+        "यूटीसी",
+    ),
     spoken_point="दशमलव",
     years_as_hundreds=True,
 )

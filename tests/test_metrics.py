@@ -43,6 +43,7 @@ def test_char_counts_ignore_spaces() -> None:
         ("₹500 दिए", "पांच सौ रुपये दिए", Counts(0, 1)),
         ("सुबह 06:30 बजे", "सुबह 6.30 बजे", Counts(0, 2)),
         ("11:35 बजे", "11.35 बजे", Counts(0, 2)),
+        ("11.35 बजे।", "11:35 बजे।", Counts(0, 2)),  # the rule applies to references too
         # Known limitation: the article "ek" matches a reference "1".
         ("1 किताब", "मेरे पास एक कलम", Counts(0, 1)),
     ],
