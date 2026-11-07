@@ -4,10 +4,10 @@ Each figure is written twice, as ``<name>-light.svg`` and ``<name>-dark.svg``,
 for GitHub's light and dark themes. Colour follows the vendor (OpenAI, Meta,
 Sarvam), for ASR systems and TTS engines alike, so a vendor keeps its colour
 across figures, and every series is also named on the chart, so colour is
-never the only cue. Text is drawn as paths in
-DejaVu Sans, which ships with matplotlib, so a figure looks and diffs the same
-whatever fonts the drawing or viewing machine has. Figures are built with
-``Figure`` rather than pyplot, so no GUI backend is needed.
+never the only cue. Text is drawn as paths in DejaVu Sans, which ships with
+matplotlib, so a figure looks and diffs the same whatever fonts the drawing or
+viewing machine has. Figures are built with ``Figure`` rather than pyplot, so
+no GUI backend is needed.
 """
 
 import io
@@ -113,10 +113,10 @@ def _display(system: str) -> str:
     return DISPLAY_NAMES.get(system, system)
 
 
-def _subset_title(subset: str, n: int, unit: str = "utterances") -> str:
+def _subset_title(subset: str, n: int) -> str:
     """For example "All utterances with numbers (523 utterances, no MMS-1B)"."""
     note = SUBSET_NOTES.get(subset, "")
-    return f"{SUBSET_TITLES.get(subset, subset)} ({n} {unit}{note})"
+    return f"{SUBSET_TITLES.get(subset, subset)} ({n} utterances{note})"
 
 
 def _spread(values: Sequence[float], gap: float, low: float = 0.0) -> list[float]:
@@ -311,8 +311,10 @@ def real_vs_synthetic(
     if (real.max(axis=1) - real.min(axis=1)).max() > 1e-6:
         raise ValueError("real-speech WER differs between test sets; they cover other sentences")
     order = list(real.iloc[:, 0].sort_values(ascending=False).index)
+    # The axis must hold every interval end, which can pass 100% WER.
     top = max(
-        float(t.loc[systems, ["wer_real", "wer_synthetic"]].max().max()) for t in tables.values()
+        max(t.loc[systems, "wer_synthetic"].max(), (t["wer_real"] + t["high"]).loc[systems].max())
+        for t in tables.values()
     )
     found = {name.rpartition("-")[2] for name in tables}
     conditions = [c for c in CONDITION_ORDER if c in found] + sorted(found - set(CONDITION_ORDER))
@@ -322,10 +324,11 @@ def real_vs_synthetic(
     real_marker = {"ms": 10, "mfc": "none", "mec": theme.ink, "mew": 2}
     for ax, condition in zip(axes, conditions, strict=True):
         _axes_style(ax, theme)
+        # In legend order, so MMS-TTS is always the upper dot and Bulbul the lower.
         synthetic = {
-            name.rpartition("-")[0]: t
-            for name, t in tables.items()
-            if name.endswith(f"-{condition}")
+            engine: tables[f"{engine}-{condition}"]
+            for engine in ENGINES
+            if f"{engine}-{condition}" in tables
         }
         for y, system in enumerate(order):
             real_wer = float(real.loc[system].iloc[0])
@@ -333,10 +336,19 @@ def real_vs_synthetic(
             # Engines sit just above and below the row so their intervals do not overlap.
             for k, (engine, table) in enumerate(synthetic.items()):
                 row = table.loc[system, ["wer_synthetic", "low", "high"]] * 100
+                # Two engines at most: the first just above the row, the second below.
                 dy = 0.16 * (1 - 2 * k) if len(synthetic) > 1 else 0.0
                 colour = theme.vendors[ENGINES[engine][1]]
                 interval = [real_wer + float(row["low"]), real_wer + float(row["high"])]
-                ax.plot(interval, [y + dy] * 2, color=colour, lw=1.5, alpha=0.45, zorder=1)
+                ax.plot(
+                    interval,
+                    [y + dy] * 2,
+                    color=colour,
+                    lw=1.5,
+                    alpha=0.45,
+                    zorder=1,
+                    label="interval",
+                )
                 ax.plot(float(row["wer_synthetic"]), y + dy, "o", ms=8, color=colour, label=engine)
         ax.set_yticks(range(len(order)), [_display(s) for s in order])
         ax.grid(axis="y", visible=False)

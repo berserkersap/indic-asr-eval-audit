@@ -2,9 +2,11 @@ import itertools
 from pathlib import Path
 
 import matplotlib as mpl
+import numpy as np
 import pandas as pd
 import pytest
 from matplotlib.colors import to_hex
+from matplotlib.lines import Line2D
 from matplotlib.text import Annotation
 
 from indic_asr_audit import plots
@@ -20,6 +22,11 @@ from indic_asr_audit.plots import (
     wer_by_level,
     wer_vs_numbers,
 )
+
+
+def _xdata(line: Line2D) -> list[float]:
+    return [float(x) for x in np.asarray(line.get_xdata(), dtype=float)]
+
 
 SYSTEMS = ["mms-1b-all", "saaras-v4-transcribe", "whisper-large-v3"]
 
@@ -160,8 +167,33 @@ def test_real_vs_synthetic_rows_intervals_and_real_marker() -> None:
     real = [ln for ln in ax.get_lines() if ln.get_label() == "real"]
     assert len(real) == 3
     assert all(ln.get_markerfacecolor() == "none" for ln in real)
-    # One interval line and one dot per engine and system.
+    # One dot per engine and system, and one interval per dot.
     assert sum(ln.get_label() == "bulbul" for ln in ax.get_lines()) == 3
+    intervals = [ln for ln in ax.get_lines() if ln.get_label() == "interval"]
+    assert len(intervals) == 6
+    # MMS-1B on the first engine (mms-tts, clean): real 30% with a change of 0 to +10 points.
+    assert sorted(_xdata(intervals[0])) == pytest.approx([30.0, 40.0])
+
+    # In every row the MMS-TTS dot sits above the Bulbul dot, as the caption says.
+    def heights(engine: str) -> list[float]:
+        dots = [ln for ln in ax.get_lines() if ln.get_label() == engine]
+        return [float(np.asarray(ln.get_ydata(), dtype=float)[0]) for ln in dots]
+
+    assert all(m > b for m, b in zip(heights("mms-tts"), heights("bulbul"), strict=True))
+
+
+def test_real_vs_synthetic_axis_holds_every_interval() -> None:
+    gaps = _gaps()
+    wide = gaps["mms-tts-clean"].assign(high=[0.9, 0.07, 0.0])  # MMS-1B up to 120% WER
+    gaps["mms-tts-clean"] = wide
+    with mpl.rc_context(RC):
+        fig = real_vs_synthetic(gaps, THEMES[0])
+    assert fig is not None
+    for ax in fig.axes:
+        left, right = ax.get_xlim()
+        for line in ax.get_lines():
+            if line.get_label() == "interval":
+                assert all(left <= x <= right for x in _xdata(line))
 
 
 def test_draw_figures_removes_a_figure_whose_data_is_gone(tmp_path: Path) -> None:

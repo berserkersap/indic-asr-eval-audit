@@ -223,9 +223,9 @@ trained on FLEURS train):
   <img alt="WER of each system at each normalisation level, for held-out and all utterances with numbers" src="results/figures/rq1-wer-by-level-light.svg">
 </picture>
 
-*Point estimates from the WER tables above. Number normalisation narrows the gap
-between Saaras's two output modes from 5.9 points at `basic` to 1.4 at `numbers`
-(see the convention table).*
+*Point estimates from the WER tables above. On held-out utterances, number
+normalisation narrows the gap between Saaras's two output modes from 5.9 points
+at `basic` to 1.4 at `numbers` (see the convention table).*
 
 ### RQ2: synthetic versus real test sets (FLEURS Hindi, MMS-TTS and Bulbul)
 
@@ -277,7 +277,8 @@ so `n` counts both utterances and sentences.
 
 *Each synthetic dot carries the 95% interval of its change from real speech (the
 table above); every dot in a row scores the same 49 sentences. Colour is the TTS
-vendor: orange for MMS-TTS (Meta), green for Bulbul (Sarvam).*
+vendor: orange for MMS-TTS (Meta, just above each row), green for Bulbul (Sarvam,
+just below).*
 
 Does the synthetic set rank systems the way real speech does? Kendall tau
 between the WER rankings on real and on other audio, with a 95% bootstrap
