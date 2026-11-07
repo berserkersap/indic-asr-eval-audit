@@ -2,8 +2,9 @@
 
 Each figure is written twice, as ``<name>-light.svg`` and ``<name>-dark.svg``,
 for GitHub's light and dark themes. Colour follows the vendor (OpenAI, Meta,
-Sarvam) so a model keeps its colour across figures, and every series is also
-named on the chart, so colour is never the only cue. Text is drawn as paths in
+Sarvam), for ASR systems and TTS engines alike, so a vendor keeps its colour
+across figures, and every series is also named on the chart, so colour is
+never the only cue. Text is drawn as paths in
 DejaVu Sans, which ships with matplotlib, so a figure looks and diffs the same
 whatever fonts the drawing or viewing machine has. Figures are built with
 ``Figure`` rather than pyplot, so no GUI backend is needed.
@@ -37,7 +38,7 @@ class Theme:
     vendors: Mapping[str, str]
 
 
-# Validated categorical slots 1-3 (blue, orange, aqua), stepped per theme.
+# Validated categorical slots 1-3 (blue, orange, green), stepped per theme.
 THEMES = (
     Theme(
         "light",
@@ -75,8 +76,11 @@ LEVEL_NAMES = {
 }
 SUBSET_TITLES = {
     "held_out_numeric": "Held-out utterances with numbers",
-    "numeric": "All utterances with numbers (no MMS-1B)",
+    "numeric": "All utterances with numbers",
 }
+SUBSET_NOTES = {"numeric": ", no MMS-1B"}  # MMS-1B was trained on FLEURS train
+VENDOR_PREFIXES = {"whisper": "openai", "mms": "meta", "saaras": "sarvam"}
+CONDITION_ORDER = ("clean", "telephony")
 ENGINES = {"mms-tts": ("MMS-TTS (Meta)", "meta"), "bulbul": ("Bulbul (Sarvam)", "sarvam")}
 RC: dict[RcKeyType, Any] = {
     "font.family": "sans-serif",
@@ -98,20 +102,21 @@ RC: dict[RcKeyType, Any] = {
 
 
 def vendor(system: str) -> str:
-    """The vendor whose colour a system takes: Whisper, MMS or Sarvam models."""
-    if system.startswith("whisper"):
-        return "openai"
-    if system.startswith("mms"):
-        return "meta"
-    return "sarvam"
+    """The vendor whose colour a system takes; an unknown system is an error, not a guess."""
+    for prefix, name in VENDOR_PREFIXES.items():
+        if system.startswith(prefix):
+            return name
+    raise ValueError(f"no vendor colour for {system}; add it to VENDOR_PREFIXES")
 
 
 def _display(system: str) -> str:
     return DISPLAY_NAMES.get(system, system)
 
 
-def _subset_title(subset: str) -> str:
-    return SUBSET_TITLES.get(subset, subset)
+def _subset_title(subset: str, n: int, unit: str = "utterances") -> str:
+    """For example "All utterances with numbers (523 utterances, no MMS-1B)"."""
+    note = SUBSET_NOTES.get(subset, "")
+    return f"{SUBSET_TITLES.get(subset, subset)} ({n} {unit}{note})"
 
 
 def _spread(values: Sequence[float], gap: float, low: float = 0.0) -> list[float]:
@@ -164,12 +169,14 @@ def _save(fig: Figure, path: Path) -> None:
 
 
 def _draw(draw: Callable[[Theme], Figure | None], out_dir: Path, name: str) -> list[Path]:
-    """Write one figure per theme; nothing if there is no data to draw."""
+    """Write one figure per theme; with no data, remove any stale copies instead."""
     paths = []
     with mpl.rc_context(RC):
         for theme in THEMES:
             fig = draw(theme)
             if fig is None:
+                for stale in THEMES:
+                    (out_dir / f"{name}-{stale.name}.svg").unlink(missing_ok=True)
                 return []
             path = out_dir / f"{name}-{theme.name}.svg"
             _save(fig, path)
@@ -210,7 +217,7 @@ def wer_vs_numbers(
         ax.annotate(
             _display(system),
             (x_value, label_y),
-            xytext=(8, 0),
+            xytext=(10, 0),
             textcoords="offset points",
             va="center",
             color=theme.ink,
@@ -224,13 +231,12 @@ def wer_vs_numbers(
     ax.set_xlim(0, None)
     ax.set_ylim(0, None)
     ax.set_xlabel("WER after number normalisation (%)")
-    ax.set_ylabel("numbers missed (%)")
+    ax.set_ylabel("numeric value error (% of numbers missed)")
     _heading(
         fig,
         theme,
         "Among open systems, lowest WER is not fewest missed numbers",
-        f"{_subset_title(subset)} ({int(wer['n'].max())}), FLEURS Hindi; "
-        "bars: 95% bootstrap intervals",
+        f"{_subset_title(subset, int(wer['n'].max()))}, FLEURS Hindi; bars: 95% intervals",
     )
     return fig
 
@@ -268,13 +274,14 @@ def wer_by_level(scores: pd.DataFrame, theme: Theme) -> Figure | None:
         ax.set_xlim(-0.25, len(levels) - 1 + 1.75)
         ax.set_ylim(0, top * 1.05)
         n = int(wer["n"].max()) if not wer.empty else 0
-        ax.set_title(f"{_subset_title(subset)} ({n})", loc="left", color=theme.ink, fontsize=10)
+        ax.set_title(_subset_title(subset, n), loc="left", color=theme.ink, fontsize=10)
     axes[0].set_ylabel("WER (%)")
     _heading(
         fig,
         theme,
-        "Whisper's normaliser makes Hindi WER look lower; number normalisation closes Saaras's gap",
-        "FLEURS Hindi; each level adds one normalisation step; intervals are in the tables",
+        "The stock Whisper normaliser makes the open systems' Hindi WER look lower",
+        "FLEURS Hindi. The Whisper normaliser deletes vowel signs; basic, + spelling and "
+        "+ numbers each add one step; intervals are in the tables",
     )
     return fig
 
@@ -286,12 +293,13 @@ def real_vs_synthetic(
 
     ``gaps`` maps a test set ("mms-tts-clean") to its gap table. Only systems
     present in every table are drawn, and their real-speech WER must be the same
-    in every table: the figure claims the same sentences in every row.
+    in every table: every dot in a row scores the same sentences. Each synthetic
+    dot carries the 95% interval of its change from real speech.
     """
     tables = {
         name: table[table["subset"] == subset].set_index("system")
         for name, table in gaps.items()
-        if name.rpartition("-")[0] in ENGINES and not table.empty
+        if name.rpartition("-")[0] in ENGINES and "subset" in table
     }
     tables = {name: table for name, table in tables.items() if not table.empty}
     if not tables:
@@ -306,32 +314,37 @@ def real_vs_synthetic(
     top = max(
         float(t.loc[systems, ["wer_real", "wer_synthetic"]].max().max()) for t in tables.values()
     )
-    conditions = sorted({name.rpartition("-")[2] for name in tables})
+    found = {name.rpartition("-")[2] for name in tables}
+    conditions = [c for c in CONDITION_ORDER if c in found] + sorted(found - set(CONDITION_ORDER))
     fig = Figure(figsize=(11, 4.2))
     axes = fig.subplots(1, len(conditions), sharey=True, squeeze=False)[0]
     fig.subplots_adjust(left=0.16, right=0.99, top=0.76, bottom=0.14, wspace=0.08)
+    real_marker = {"ms": 10, "mfc": "none", "mec": theme.ink, "mew": 2}
     for ax, condition in zip(axes, conditions, strict=True):
         _axes_style(ax, theme)
         synthetic = {
-            name.rpartition("-")[0]: t["wer_synthetic"] * 100
+            name.rpartition("-")[0]: t
             for name, t in tables.items()
             if name.endswith(f"-{condition}")
         }
         for y, system in enumerate(order):
-            values = [float(real.loc[system].iloc[0])]
-            values += [float(series[system]) for series in synthetic.values()]
-            ax.plot([min(values), max(values)], [y, y], color=theme.axis, lw=1.5, zorder=1)
-            ax.plot(values[0], y, "o", ms=10, mfc="none", mec=theme.ink, mew=2, zorder=3)
-            for engine, series in synthetic.items():
+            real_wer = float(real.loc[system].iloc[0])
+            ax.plot(real_wer, y, "o", zorder=3, label="real", **real_marker)
+            # Engines sit just above and below the row so their intervals do not overlap.
+            for k, (engine, table) in enumerate(synthetic.items()):
+                row = table.loc[system, ["wer_synthetic", "low", "high"]] * 100
+                dy = 0.16 * (1 - 2 * k) if len(synthetic) > 1 else 0.0
                 colour = theme.vendors[ENGINES[engine][1]]
-                ax.plot(float(series[system]), y, "o", ms=8, color=colour, zorder=2, label=engine)
+                interval = [real_wer + float(row["low"]), real_wer + float(row["high"])]
+                ax.plot(interval, [y + dy] * 2, color=colour, lw=1.5, alpha=0.45, zorder=1)
+                ax.plot(float(row["wer_synthetic"]), y + dy, "o", ms=8, color=colour, label=engine)
         ax.set_yticks(range(len(order)), [_display(s) for s in order])
         ax.grid(axis="y", visible=False)
         ax.set_xlim(0, top * 100 * 1.05)
+        ax.set_ylim(-0.6, len(order) - 0.4)
         ax.set_xlabel("WER (%)")
         n = max(int(t["n"].max()) for name, t in tables.items() if name.endswith(f"-{condition}"))
         ax.set_title(f"{condition} audio ({n} sentences)", loc="left", color=theme.ink, fontsize=10)
-    real_marker = {"ms": 9, "mfc": "none", "mec": theme.ink, "mew": 2}
     handles = [axes[0].plot([], [], "o", label="real speech", **real_marker)[0]]
     handles += [
         axes[0].plot([], [], "o", ms=8, color=theme.vendors[key], label=label)[0]
@@ -349,8 +362,9 @@ def real_vs_synthetic(
     _heading(
         fig,
         theme,
-        "The TTS engine decides whether synthetic audio looks harder or easier",
-        f"{_subset_title(subset)}, FLEURS Hindi; the same sentences in every row",
+        "The TTS engine sets whether synthetic audio looks harder or easier",
+        f"{SUBSET_TITLES.get(subset, subset)}, FLEURS Hindi; bars: 95% interval of the change "
+        "from real speech; colour: TTS vendor",
     )
     return fig
 

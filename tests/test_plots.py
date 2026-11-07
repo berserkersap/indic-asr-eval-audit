@@ -5,7 +5,9 @@ import matplotlib as mpl
 import pandas as pd
 import pytest
 from matplotlib.colors import to_hex
+from matplotlib.text import Annotation
 
+from indic_asr_audit import plots
 from indic_asr_audit.normalize import Level
 from indic_asr_audit.plots import (
     RC,
@@ -47,6 +49,8 @@ def _gaps() -> dict[str, pd.DataFrame]:
             "n": 5,
             "wer_real": [0.3, 0.1, 0.2],
             "wer_synthetic": [0.35, 0.12, 0.15],
+            "low": [0.0, -0.03, -0.1],
+            "high": [0.1, 0.07, 0.0],
         }
     )
     return {f"{e}-{c}": table for e in ("mms-tts", "bulbul") for c in ("clean", "telephony")}
@@ -119,6 +123,53 @@ def test_real_vs_synthetic_refuses_different_real_speech() -> None:
     gaps["bulbul-clean"] = gaps["bulbul-clean"].assign(wer_real=0.9)
     with mpl.rc_context(RC), pytest.raises(ValueError, match="real-speech WER differs"):
         real_vs_synthetic(gaps, THEMES[0])
+
+
+def test_unknown_systems_have_no_colour_rather_than_a_wrong_one() -> None:
+    with pytest.raises(ValueError, match="no vendor colour"):
+        vendor("indicconformer")
+
+
+def test_scatter_labels_sit_on_their_points_when_there_is_room() -> None:
+    scores = _scores()
+    with mpl.rc_context(RC):
+        fig = wer_vs_numbers(scores, THEMES[0])
+    assert fig is not None
+    held_out = scores[scores["subset"] == "held_out_numeric"]
+    missed = held_out[held_out["metric"] == "numeric_error"]
+    expected = {
+        plots.DISPLAY_NAMES[s]: e * 100
+        for s, e in zip(missed["system"], missed["estimate"], strict=True)
+    }
+    notes = [a for a in fig.axes[0].texts if isinstance(a, Annotation)]
+    labels = {a.get_text(): a.xy[1] for a in notes}
+    assert labels == pytest.approx(expected)  # 10 points apart, so none needs moving
+
+
+def test_real_vs_synthetic_rows_intervals_and_real_marker() -> None:
+    with mpl.rc_context(RC):
+        fig = real_vs_synthetic(_gaps(), THEMES[0])
+    assert fig is not None
+    ax = fig.axes[0]
+    # Rows from the highest real-speech WER (bottom) to the lowest (top).
+    assert [t.get_text() for t in ax.get_yticklabels()] == [
+        "MMS-1B",
+        "Whisper large-v3",
+        "Saaras v4 transcribe",
+    ]
+    real = [ln for ln in ax.get_lines() if ln.get_label() == "real"]
+    assert len(real) == 3
+    assert all(ln.get_markerfacecolor() == "none" for ln in real)
+    # One interval line and one dot per engine and system.
+    assert sum(ln.get_label() == "bulbul" for ln in ax.get_lines()) == 3
+
+
+def test_draw_figures_removes_a_figure_whose_data_is_gone(tmp_path: Path) -> None:
+    out = tmp_path / "figures"
+    draw_figures(tmp_path / "missing", _gaps(), out)
+    assert (out / "rq2-real-vs-synthetic-light.svg").exists()
+    draw_figures(tmp_path / "missing", {}, out)
+    assert not any(out.iterdir())
 
 
 def test_draw_figures_writes_light_and_dark_svgs(tmp_path: Path) -> None:

@@ -120,6 +120,10 @@ WER at the `numbers` level.
   <img alt="WER against the share of numbers missed for each system: MMS-1B has the lowest WER of the open systems but misses about half of the numbers" src="results/figures/rq1-wer-vs-numbers-light.svg">
 </picture>
 
+*Point estimates and 95% intervals from the table above. Saaras is a hosted
+model that may have seen FLEURS, so it is not a like-for-like comparison with
+the open systems.*
+
 Pairs of systems that WER (at the `numbers` level) and the numeric value error
 put in opposite order. A reversal is significant when the paired bootstrap
 intervals of both differences exclude zero; the two significant pairs share
@@ -219,6 +223,10 @@ trained on FLEURS train):
   <img alt="WER of each system at each normalisation level, for held-out and all utterances with numbers" src="results/figures/rq1-wer-by-level-light.svg">
 </picture>
 
+*Point estimates from the WER tables above. Number normalisation narrows the gap
+between Saaras's two output modes from 5.9 points at `basic` to 1.4 at `numbers`
+(see the convention table).*
+
 ### RQ2: synthetic versus real test sets (FLEURS Hindi, MMS-TTS and Bulbul)
 
 Each synthetic clip is paired with a real recording of the same sentence and
@@ -266,6 +274,10 @@ so `n` counts both utterances and sentences.
   <source media="(prefers-color-scheme: dark)" srcset="results/figures/rq2-real-vs-synthetic-dark.svg">
   <img alt="WER of each open system on real speech, MMS-TTS audio and Bulbul audio, clean and telephony" src="results/figures/rq2-real-vs-synthetic-light.svg">
 </picture>
+
+*Each synthetic dot carries the 95% interval of its change from real speech (the
+table above); every dot in a row scores the same 49 sentences. Colour is the TTS
+vendor: orange for MMS-TTS (Meta), green for Bulbul (Sarvam).*
 
 Does the synthetic set rank systems the way real speech does? Kendall tau
 between the WER rankings on real and on other audio, with a 95% bootstrap
