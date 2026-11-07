@@ -17,6 +17,13 @@ def test_whisper_level_strips_vowel_signs() -> None:
     assert len(out.split()) > 2  # removing the marks splits the words
 
 
+def test_whisper_level_matches_recorded_transformers_output() -> None:
+    # Recorded with transformers 5.22.1, so CI checks this without installing it.
+    path = Path(__file__).parent / "fixtures" / "whisper_basic.json"
+    for case in json.loads(path.read_text(encoding="utf-8")):
+        assert whisper_basic(case["text"]) == case["expected"], case["text"]
+
+
 def test_whisper_level_matches_transformers() -> None:
     english_normalizer = pytest.importorskip("transformers.models.whisper.english_normalizer")
     reference = english_normalizer.BasicTextNormalizer()
