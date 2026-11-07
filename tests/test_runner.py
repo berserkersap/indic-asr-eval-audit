@@ -174,3 +174,19 @@ def test_call_sarvam_gives_up_after_the_last_attempt(monkeypatch: pytest.MonkeyP
     assert len(calls) == 3
     assert len(waits) == 2
     assert waits == [1.5, 2.5]  # 2**attempt seconds plus jitter
+
+
+def test_call_sarvam_makes_one_attempt_when_retries_are_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    waits: list[float] = []
+    monkeypatch.setattr("time.sleep", waits.append)
+    calls: list[int] = []
+
+    def request() -> None:
+        calls.append(1)
+        raise _HttpError(503)
+
+    with pytest.raises(_HttpError):
+        call_sarvam(request, max_retries=0)
+    assert (len(calls), waits) == (1, [])
