@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -69,3 +70,19 @@ def test_rq2_needs_a_system_shared_by_every_synthetic_set(
     monkeypatch.chdir(tmp_path)
     with pytest.raises(SystemExit, match="every synthetic set"):
         main(["rq2", "d-tts-clean", "d-tts-telephony", "--dataset", "d"])
+
+
+def test_env_file_is_loaded_but_the_shell_wins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("dotenv")
+    from indic_asr_audit.cli import _load_env
+
+    (tmp_path / ".env").write_text("AUDIT_TEST_KEY=from-file\nAUDIT_TEST_SET=from-file\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("AUDIT_TEST_KEY", raising=False)
+    monkeypatch.setenv("AUDIT_TEST_SET", "from-shell")
+    _load_env()
+    assert os.environ["AUDIT_TEST_KEY"] == "from-file"
+    assert os.environ["AUDIT_TEST_SET"] == "from-shell"
+    monkeypatch.delenv("AUDIT_TEST_KEY")

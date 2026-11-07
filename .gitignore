@@ -12,6 +12,10 @@ htmlcov/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.coverage.*
+.hypothesis/
+.tox/
+.nox/
 
 # Secrets
 .env
@@ -27,6 +31,9 @@ data/
 *.opus
 *.m4a
 *.tar.gz
+logs/
+*.log
+nohup.out
 
 # Model weights
 checkpoints/
@@ -41,7 +48,6 @@ checkpoints/
 .idea/
 .DS_Store
 Thumbs.db
-logs/
 
 # Private working notes
 metadata/

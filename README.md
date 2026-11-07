@@ -754,9 +754,9 @@ tables are committed, so `rq1`, `rq2` and `report` run on a CPU-only machine
 without any model or audio, and every table and figure in this README is generated from
 [`results/`](results/) by `asr-audit report`. Each transcript file has a
 `.meta.json` with the model revision, decoding settings and package versions.
-Sarvam systems read `SARVAM_API_KEY` from the environment; the `.env` file
-is not loaded automatically, so set the variable in the shell first (see
-[`.env.example`](.env.example)).
+Sarvam systems need `SARVAM_API_KEY`: copy [`.env.example`](.env.example) to
+`.env` in the folder you run `asr-audit` from and fill it in, or set the
+variable in the shell, which takes precedence.
 
 To add another language, see
 [docs/extending-to-new-languages.md](docs/extending-to-new-languages.md).

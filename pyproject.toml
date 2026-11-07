@@ -36,6 +36,7 @@ dependencies = [
 asr = [
     "accelerate>=1.0",
     "huggingface-hub>=0.26",
+    "python-dotenv>=1.0",
     "sarvamai>=0.1.40",
     "soundfile>=0.13",
     "torch>=2.6",
@@ -43,6 +44,7 @@ asr = [
 ]
 synth = [
     "langgraph>=1.0",
+    "python-dotenv>=1.0",
     "sarvamai>=0.1.40",
     "soundfile>=0.13",
 ]

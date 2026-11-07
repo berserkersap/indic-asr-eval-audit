@@ -285,8 +285,22 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _load_env() -> None:
+    """Read variables such as SARVAM_API_KEY from a .env file in the working directory.
+
+    A variable already set in the environment wins. Without the asr or synth
+    extra, python-dotenv is not installed, and nothing needs a key.
+    """
+    try:
+        from dotenv import find_dotenv, load_dotenv
+    except ImportError:
+        return
+    load_dotenv(find_dotenv(usecwd=True), override=False)
+
+
 def main(argv: list[str] | None = None) -> None:
     """Run the CLI."""
+    _load_env()
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     args.run(args)
