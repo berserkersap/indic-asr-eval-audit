@@ -262,7 +262,7 @@ sentence (FLEURS has no speaker ids).
 "Same sentences" restricts a synthetic set to those sentences; "all" uses every
 sentence it has. A flip counts as significant only if the two systems differ on
 real speech; whether they differ on the synthetic audio is not tested. As in
-RQ1, no correction is made for testing every pair of systems in each row.
+RQ1, no correction is made for multiple comparisons, within a row or across rows.
 
 <!-- rq2-agreement -->
 | subset | compared with real speech | sentences | systems | Kendall tau | pairs flipped | significant flips |
