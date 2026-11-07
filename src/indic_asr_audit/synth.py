@@ -135,7 +135,7 @@ class BulbulTTS:
         self.client = SarvamAI(api_subscription_key=key)
         self.name, self.model, self.language = "bulbul", model, language
         self.voices = list(voices)
-        self.max_retries = max(1, max_retries)
+        self.max_retries = max_retries
 
     def _request(self, text: str, voice: str) -> Any:
         return call_sarvam(

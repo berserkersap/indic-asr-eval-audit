@@ -162,6 +162,7 @@ def test_sarvam_does_not_retry_bad_requests() -> None:
 def test_call_sarvam_gives_up_after_the_last_attempt(monkeypatch: pytest.MonkeyPatch) -> None:
     waits: list[float] = []
     monkeypatch.setattr("time.sleep", waits.append)
+    monkeypatch.setattr("random.random", lambda: 0.5)
     calls: list[int] = []
 
     def request() -> None:
@@ -172,4 +173,4 @@ def test_call_sarvam_gives_up_after_the_last_attempt(monkeypatch: pytest.MonkeyP
         call_sarvam(request, max_retries=3)
     assert len(calls) == 3
     assert len(waits) == 2
-    assert 1 <= waits[0] < 2 <= waits[1] < 3  # exponential backoff with jitter
+    assert waits == [1.5, 2.5]  # 2**attempt seconds plus jitter

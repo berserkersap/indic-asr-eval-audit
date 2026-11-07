@@ -249,7 +249,7 @@ class SarvamTranscriber:
             raise RuntimeError("Set SARVAM_API_KEY (see .env.example) to run Sarvam systems")
         self.client = SarvamAI(api_subscription_key=key)
         self.model, self.mode, self.language = model, mode, language
-        self.max_retries = max(1, max_retries)
+        self.max_retries = max_retries
 
     def transcribe(self, batch: Sequence[Audio]) -> list[str]:
         """Return one transcript per input, one request each."""
