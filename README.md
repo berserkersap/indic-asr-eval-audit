@@ -73,11 +73,11 @@ cluster-bootstrap intervals:
   controls and, for `verbatim`, on all utterances with numbers).
 - **The TTS engine sets whether a synthetic test set looks harder or easier
   than real speech, and it can blur a real difference between systems.** On
-  the 49 held-out
-  sentences with numbers, MMS-TTS audio raises WER by 7 to 12 points for the
-  three strongest systems (MMS-1B, Whisper large-v3 and large-v3-turbo), clean
-  or telephony, while Sarvam's Bulbul lowers it by 7 to 9 points for the two
-  Whisper large models and by only about 3.5 for MMS-1B (not significant).
+  the 49 held-out sentences with numbers, MMS-TTS audio raises WER by 7 to 12
+  points for the three strongest systems (MMS-1B, Whisper large-v3 and
+  large-v3-turbo), clean or telephony, while Sarvam's Bulbul lowers it by 7 to
+  9 points for the two Whisper large models and by only about 3.5 for MMS-1B
+  (not significant).
   On real speech MMS-1B leads Whisper large-v3 by 2.9 points [0.1, 5.6],
   just clear of zero; on Bulbul audio large-v3 is 1 to 2 points ahead, with
   intervals that include zero. That is a near-tie that changes sign, not an
@@ -344,10 +344,10 @@ Reading these tables:
 - Bulbul speech is easier than real speech for every system on average: by
   7 to 9 points for the Whisper large models, 16 to 28 for Whisper small and
   medium, and about 3.5 for MMS-1B (the intervals for MMS-1B reach zero, and
-  for Whisper small on telephony include it). On 22 of the 26 sentences that have a
-  second real recording it lowers the WER of the three strongest systems by
-  5.9 to 11.1 points (intervals exclude zero), against -2.3 to -3.7 for that
-  recording on all 26 (intervals include zero). Why Whisper small and medium
+  for Whisper small on telephony include it). On 22 of the 26 sentences that
+  have a second real recording it lowers the WER of the three strongest
+  systems by 5.9 to 11.1 points (intervals exclude zero), against -2.3 to
+  -3.7 for that recording on all 26 (intervals include zero). Why Whisper small and medium
   gain most, and MMS-1B least, is not established; no one has listened to
   the clips.
 - With MMS-TTS the numeric value error rises more than WER does, which
@@ -365,9 +365,8 @@ Reading these tables:
   significant (large-v3 ahead by 2.0 [-1.1, 4.9] clean, 1.0 [-1.8, 4.0]
   telephony); on the 22 same sentences the swap is not significant.
 - Per-utterance difficulty: the median ρ for synthetic audio is similar to
-  that for a second recording, 0.31 to 0.39 against 0.37 on held-out sentences
-  and
-  0.39 to 0.47 against 0.47 on all sentences with numbers. There is no
+  that for a second recording: 0.31 to 0.39 against 0.37 on held-out
+  sentences, and 0.39 to 0.47 against 0.47 on all sentences with numbers. There is no
   interval, single systems go as low as -0.11, and the sentence sets differ
   slightly (22 against 26 held-out sentences).
 - The sentences left out (39 for MMS-TTS, 41 for Bulbul; 37 for Latin-letter
@@ -501,10 +500,11 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
   prosody) and Bulbul with eight voices. They show what these engines do,
   and that the two disagree, not what synthetic speech does in general. Five
   systems give only ten pairs to flip and a wide interval on Kendall tau, so
-  ranking agreement here is a weak test. Some differences are ruled out:
-  both engines speak the same verbalised text, keep the same 49 held-out
-  sentences, and speak at a similar pace (median 0.84 and 0.87 of the real
-  recording's speech time). Bulbul is a hosted model whose training data is
+  ranking agreement here is a weak test. Some differences between the
+  engines are ruled out: both speak the same verbalised text, keep the same
+  49 held-out sentences, and speak at a similar pace (median 0.84 and 0.87
+  of the real recording's speech time). Both are faster than the real
+  speakers, so pace may still affect how either compares with real speech. Bulbul is a hosted model whose training data is
   not public; FLEURS may be in it. The audio is not committed; the
   transcripts, each engine's settings and its per-sentence log (voice,
   attempts, reason for leaving out) are, in
