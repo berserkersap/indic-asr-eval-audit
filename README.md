@@ -78,10 +78,11 @@ intervals:
   large-v3-turbo), clean or telephony, while Sarvam's Bulbul lowers it by 7 to
   9 points for the two Whisper large models and by only about 3.5 for MMS-1B
   (not significant). On real speech MMS-1B leads Whisper large-v3 by 2.9
-  points [0.1, 5.6], just clear of zero; on Bulbul audio large-v3 is 1 to 2 points ahead, with
-  intervals that include zero. That is a near-tie that changes sign, not an
-  established reordering, but it lowers Kendall tau to 0.80, where a second
-  real recording gives 1.00; with MMS-TTS no pair swaps order. On numbers,
+  points [0.1, 5.6], just clear of zero; on Bulbul audio large-v3 is 1 to 2
+  points ahead, with intervals that include zero. That is a near-tie that
+  changes sign, not an established reordering, but it lowers Kendall tau to
+  0.80, where a second real recording gives 1.00; with MMS-TTS no pair swaps
+  order. On numbers,
   MMS-TTS raises the numeric value error by 13 to 24 points for the three
   strongest systems, while Bulbul changes it by -4 to +3 points for the
   Whisper large models but raises it by 10 to 11 for MMS-1B (79 numbers, no
