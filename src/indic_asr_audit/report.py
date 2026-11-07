@@ -23,7 +23,7 @@ SUBSET_NAMES = {
 
 def _pct(row: Mapping[Hashable, Any]) -> str:
     """A rate and its interval, in percent."""
-    value, low, high = (float(str(row[key])) * 100 for key in ("estimate", "low", "high"))
+    value, low, high = (float(row[key]) * 100 for key in ("estimate", "low", "high"))
     return f"{value:.1f} [{low:.1f}, {high:.1f}]"
 
 
@@ -99,12 +99,15 @@ def steps_table(steps: pd.DataFrame, subset: str) -> str:
 
 
 def ranks_summary(ranks: pd.DataFrame) -> str:
-    """One sentence if no ranking changes between levels, else the rankings that change."""
+    """One sentence if no ranking changes between levels, else the rankings that change.
+
+    Each level is compared with the ``whisper`` level, not with every other level.
+    """
     changed = ranks[ranks["pairs_flipped"] > 0]
     if changed.empty:
         return (
-            "No pair of systems changes order between any two normalisation levels, "
-            "in any subset (Kendall tau = 1 throughout)."
+            "No pair of systems changes order between the `whisper` level and any other "
+            "normalisation level, in any subset (Kendall tau = 1 throughout)."
         )
     table = pd.DataFrame(
         {
@@ -116,8 +119,9 @@ def ranks_summary(ranks: pd.DataFrame) -> str:
         }
     )
     return (
-        "Only these rankings change between normalisation levels; in every other subset "
-        f"and pair of levels, no pair of systems changes order.{NEWLINE * 2}{_markdown(table)}"
+        "Only these rankings change between the `whisper` level and another normalisation "
+        "level; in every other subset and comparison, no pair of systems changes order."
+        f"{NEWLINE * 2}{_markdown(table)}"
     )
 
 

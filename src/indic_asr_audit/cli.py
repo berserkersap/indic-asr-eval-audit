@@ -37,7 +37,7 @@ def _transcribe(args: argparse.Namespace) -> None:
         utterances = [u for u in utterances if u.has_number]
     systems = load_systems(args.systems)
     for name in args.system:
-        out = Path("results") / "transcripts" / args.dataset / f"{name}.jsonl"
+        out = RESULTS / "transcripts" / args.dataset / f"{name}.jsonl"
         run_transcription(
             systems[name].build(), utterances, args.data_dir, out, batch_size=args.batch_size
         )
@@ -55,7 +55,7 @@ def _rq1(args: argparse.Namespace) -> None:
     systems = load_systems(args.systems)
     transcripts = {}
     for name in systems:
-        hyps = read_transcripts(Path("results") / "transcripts" / args.dataset / f"{name}.jsonl")
+        hyps = read_transcripts(RESULTS / "transcripts" / args.dataset / f"{name}.jsonl")
         done = sum(u.id in hyps for u in utterances)
         if done == len(utterances):
             transcripts[name] = hyps
@@ -63,7 +63,7 @@ def _rq1(args: argparse.Namespace) -> None:
             print(f"skipping {name}: {done}/{len(utterances)} utterances transcribed")
     if not transcripts:
         raise SystemExit("No system has complete transcripts; run `asr-audit transcribe` first.")
-    out_dir = Path("results") / "rq1" / args.dataset
+    out_dir = RESULTS / "rq1" / args.dataset
     tables = rq1_tables(
         utterances,
         transcripts,
@@ -106,7 +106,7 @@ def _synthesize(args: argparse.Namespace) -> None:
     log = pd.DataFrame(records)
     log["reason"] = [p[0].split(" ")[0] if p else "" for p in log["problems"]]
     summary = log.groupby(["has_number", "split", "status", "reason"]).size().rename("sentences")
-    out = Path("results") / "synth" / f"{base}-summary.csv"
+    out = RESULTS / "synth" / f"{base}-summary.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     summary.reset_index().to_csv(out, index=False, lineterminator="\n")
     print(summary.to_string())
@@ -122,7 +122,7 @@ def _complete(dataset: str, names: list[str], ids: list[str]) -> dict[str, dict[
 
     found = {}
     for name in names:
-        hyps = read_transcripts(Path("results") / "transcripts" / dataset / f"{name}.jsonl")
+        hyps = read_transcripts(RESULTS / "transcripts" / dataset / f"{name}.jsonl")
         done = sum(i in hyps for i in ids)
         if done == len(ids):
             found[name] = hyps
@@ -193,7 +193,9 @@ def _token_rate(args: argparse.Namespace) -> None:
     from indic_asr_audit.data import read_manifest
 
     system = load_systems(args.systems)[args.system]
-    tokenizer = WhisperTokenizer.from_pretrained(system.model, revision=system.options["revision"])
+    tokenizer = WhisperTokenizer.from_pretrained(
+        system.model, revision=system.options.get("revision")
+    )
     rates = np.array(
         [
             len(tokenizer(u.text, add_special_tokens=False).input_ids)
@@ -220,8 +222,7 @@ def _token_rate(args: argparse.Namespace) -> None:
 def _report(args: argparse.Namespace) -> None:
     from indic_asr_audit.report import fill_readme, render_rq1, render_rq2
 
-    results = Path("results")
-    blocks = render_rq1(results / "rq1" / args.dataset) | render_rq2(results, args.dataset)
+    blocks = render_rq1(RESULTS / "rq1" / args.dataset) | render_rq2(RESULTS, args.dataset)
     fill_readme(args.readme, blocks)
     print(f"Updated {args.readme}")
 

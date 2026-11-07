@@ -53,7 +53,7 @@ intervals:
   (numbers as digits) after basic normalisation, but only 1.4 [0.4, 2.4]
   points worse once numbers are normalised (1.5 on all utterances with
   numbers). Without numbers the two modes differ by at most
-  0.3 points, with intervals that include zero. The remaining 1.4 points are
+  0.3 points, with intervals that reach zero. The remaining 1.4 points are
   partly a parser gap (see the note under the convention table), so three
   quarters is a lower bound. Whether the two modes share weights is not
   public; training on FLEURS would affect this comparison less than one
@@ -162,7 +162,7 @@ next:
 <!-- /rq1-steps -->
 
 <!-- rq1-ranks -->
-Only these rankings change between normalisation levels; in every other subset and pair of levels, no pair of systems changes order.
+Only these rankings change between the `whisper` level and another normalisation level; in every other subset and comparison, no pair of systems changes order.
 
 | subset | levels | systems | Kendall tau | pairs that flip |
 |---|---|---|---|---|
@@ -261,7 +261,8 @@ recording of each sentence and compares with a second recording of the same
 sentence (FLEURS has no speaker ids).
 "Same sentences" restricts a synthetic set to those sentences; "all" uses every
 sentence it has. A flip counts as significant only if the two systems differ on
-real speech; whether they differ on the synthetic audio is not tested.
+real speech; whether they differ on the synthetic audio is not tested. As in
+RQ1, no correction is made for testing ten pairs in each row.
 
 <!-- rq2-agreement -->
 | subset | compared with real speech | sentences | systems | Kendall tau | pairs flipped | significant flips |
@@ -503,7 +504,8 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
   ranking agreement here is a weak test. Some differences between the
   engines are ruled out: both speak the same verbalised text, keep the same
   49 held-out sentences, and speak at a similar pace (median 0.84 and 0.87
-  of the real recording's speech time). Both are faster than the real
+  of the real recording's speech time, measured on the local clips; the log
+  records this ratio only for clips left out). Both are faster than the real
   speakers, so pace may still affect how either compares with real speech.
   Bulbul is a hosted model whose training data is not public; FLEURS may be
   in it. The audio is not committed; the
@@ -590,7 +592,9 @@ tables are committed, so `rq1`, `rq2` and `report` run on a CPU-only machine
 without any model or audio, and every table in this README is generated from
 [`results/`](results/) by `asr-audit report`. Each transcript file has a
 `.meta.json` with the model revision, decoding settings and package versions.
-Sarvam systems need `SARVAM_API_KEY` (see [`.env.example`](.env.example)).
+Sarvam systems read `SARVAM_API_KEY` from the environment; the `.env` file
+is not loaded automatically, so set the variable in the shell first (see
+[`.env.example`](.env.example)).
 
 To add another language, see
 [docs/extending-to-new-languages.md](docs/extending-to-new-languages.md).
