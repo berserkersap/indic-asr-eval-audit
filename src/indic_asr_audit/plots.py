@@ -1,9 +1,13 @@
-"""Figures, drawn only from the result tables so they can be redrawn on CPU."""
+"""Figures, drawn only from the result tables so they can be redrawn on CPU.
+
+Figures are built with ``Figure`` rather than pyplot, so no GUI backend is
+needed and nothing is left open between plots.
+"""
 
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.figure import Figure
 
 from indic_asr_audit.normalize import Level
 
@@ -16,7 +20,8 @@ def plot_rq1(scores: pd.DataFrame, path: Path) -> None:
     """
     subsets = ["held_out_numeric", "numeric"]
     levels = list(Level)
-    fig, axes = plt.subplots(1, len(subsets), figsize=(11, 4), sharey=True)
+    fig = Figure(figsize=(11, 4))
+    axes = fig.subplots(1, len(subsets), sharey=True, squeeze=False)[0]
     for ax, subset in zip(axes, subsets, strict=True):
         wer = scores[(scores["metric"] == "wer") & (scores["subset"] == subset)]
         for system, rows in wer.groupby("system"):
@@ -41,13 +46,13 @@ def plot_rq1(scores: pd.DataFrame, path: Path) -> None:
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=150)
-    plt.close(fig)
 
 
 def plot_rq2(gap: pd.DataFrame, path: Path, title: str, subset: str = "held_out_numeric") -> None:
     """WER on real audio against WER on synthetic audio, one point per system."""
     rows = gap[gap["subset"] == subset]
-    fig, ax = plt.subplots(figsize=(5, 5))
+    fig = Figure(figsize=(5, 5))
+    ax = fig.subplots()
     ax.scatter(rows["wer_real"] * 100, rows["wer_synthetic"] * 100)
     for record in rows.to_dict("records"):
         point = (float(record["wer_real"]) * 100, float(record["wer_synthetic"]) * 100)
@@ -62,4 +67,3 @@ def plot_rq2(gap: pd.DataFrame, path: Path, title: str, subset: str = "held_out_
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=150)
-    plt.close(fig)
