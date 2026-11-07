@@ -6,8 +6,8 @@ held_out_numeric,whisper-large-v3-turbo,0.3903
 held_out_numeric,mms-1b-all,-0.0588
 numeric,whisper-small,0.3731
 numeric,whisper-medium,0.3232
-numeric,whisper-large-v3,0.4145
-numeric,whisper-large-v3-turbo,0.3979
+numeric,whisper-large-v3,0.4146
+numeric,whisper-large-v3-turbo,0.3955
 control,whisper-small,0.3259
 control,whisper-medium,0.4384
 control,whisper-large-v3,0.3059

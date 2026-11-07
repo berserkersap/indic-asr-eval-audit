@@ -34,7 +34,7 @@ intervals:
 - **WER and the numeric value error disagree about MMS-1B.** On held-out
   utterances with numbers (85 utterances, 135 numbers), MMS-1B has the lowest
   WER of the five open systems (23.1%) but misses 67 of the 135 numbers (49.6%),
-  2.7 times as many as Whisper large-v3 (25, 18.5%). Against both Whisper large
+  3.2 times as many as Whisper large-v3 (21, 15.6%). Against both Whisper large
   models the two metrics rank MMS in opposite order, and both differences are
   significant. Forgiving close misspellings of number words (within 0.25
   normalised edit distance) changes this very little, so it is not an
@@ -72,17 +72,17 @@ intervals:
   significant), and 1 to 3 points across all subsets (significant on the
   controls and, for `verbatim`, on all utterances with numbers).
 - **The TTS engine sets whether a synthetic test set looks harder or easier
-  than real speech, and it can blur a real difference between systems.** On
+  than real speech, and it can swap systems that are close.** On
   the 49 held-out sentences with numbers, MMS-TTS audio raises WER by 7 to 12
   points for the three strongest systems (MMS-1B, Whisper large-v3 and
   large-v3-turbo), clean or telephony, while Sarvam's Bulbul lowers it by 7 to
   9 points for the two Whisper large models and by only about 3.5 for MMS-1B
-  (not significant). On real speech MMS-1B leads Whisper large-v3 by 2.9
-  points [0.1, 5.6], just clear of zero; on Bulbul audio large-v3 is 1 to 2
-  points ahead, with intervals that include zero. That is a near-tie that
-  changes sign, not an established reordering, but it lowers Kendall tau to
-  0.80, where a second real recording gives 1.00; with MMS-TTS no pair swaps
-  order. On numbers,
+  (not significant). On real speech MMS-1B leads Whisper large-v3 by 2.7
+  points [-0.1, 5.4]; on Bulbul audio large-v3 is 1 to 2 points ahead.
+  Neither difference is significant, so this is a near-tie that changes sign,
+  not an established reordering, but it lowers Kendall tau to 0.80, where a
+  second real recording gives 1.00; with MMS-TTS no pair swaps order. On
+  numbers,
   MMS-TTS raises the numeric value error by 13 to 24 points for the three
   strongest systems, while Bulbul changes it by -4 to +3 points for the
   Whisper large models but raises it by 10 to 11 for MMS-1B (79 numbers, no
@@ -109,8 +109,8 @@ WER at the `numbers` level.
 | `saaras-v4-transcribe` | 10.6 [7.5, 14.7] | 11.6 [9.7, 13.6] | 9.9 [8.0, 12.1] | 6.7 [5.2, 8.3] | 4.4 [0.8, 9.1] | 4.4 [0.8, 9.1] |
 | `saaras-v4-verbatim` | 15.8 [12.2, 20.3] | 17.4 [14.9, 20.3] | 15.7 [13.2, 18.5] | 8.0 [6.3, 10.1] | 8.9 [3.2, 15.3] | 8.9 [3.2, 15.3] |
 | `mms-1b-all` | 16.2 [13.4, 20.1] | 25.1 [22.6, 27.9] | 23.7 [21.1, 26.6] | 23.1 [20.4, 25.9] | 49.6 [39.1, 60.1] | 48.1 [37.9, 58.7] |
-| `whisper-large-v3` | 20.9 [17.7, 25.0] | 29.3 [26.8, 32.1] | 27.4 [24.3, 30.6] | 26.7 [23.5, 30.0] | 18.5 [7.8, 29.9] | 17.0 [6.8, 27.8] |
-| `whisper-large-v3-turbo` | 24.1 [19.6, 29.7] | 33.6 [29.0, 40.6] | 31.7 [26.6, 39.0] | 31.3 [26.3, 38.6] | 23.7 [13.3, 35.2] | 23.0 [12.9, 33.8] |
+| `whisper-large-v3` | 20.9 [17.7, 25.0] | 29.2 [26.7, 31.9] | 27.2 [24.2, 30.4] | 26.5 [23.4, 29.7] | 15.6 [6.6, 25.0] | 14.1 [5.6, 23.4] |
+| `whisper-large-v3-turbo` | 24.1 [19.6, 29.7] | 33.5 [28.9, 40.6] | 31.6 [26.6, 38.9] | 31.2 [26.3, 38.5] | 22.2 [12.6, 32.6] | 21.5 [12.1, 32.0] |
 | `whisper-medium` | 38.2 [30.7, 48.1] | 50.4 [41.3, 63.9] | 49.4 [39.9, 62.8] | 48.9 [39.5, 62.4] | 35.6 [23.9, 46.8] | 35.6 [23.9, 46.8] |
 | `whisper-small` | 68.3 [55.9, 83.4] | 76.4 [66.9, 87.8] | 75.6 [66.0, 87.1] | 75.0 [65.5, 86.5] | 78.5 [69.2, 86.3] | 77.0 [67.5, 84.8] |
 <!-- /rq1-wer -->
@@ -128,7 +128,7 @@ Pairs of systems that WER (at the `numbers` level) and the numeric value error
 put in opposite order. A reversal is significant when the paired bootstrap
 intervals of both differences exclude zero; the two significant pairs share
 MMS, so they are not independent. No correction is made for testing several
-pairs, but the two numeric-error intervals clear zero by about 11 points or
+pairs, but the two numeric-error intervals clear zero by about 13 points or
 more.
 
 <!-- rq1-disagreement -->
@@ -149,8 +149,8 @@ several: "8 0 0" for 800 is three).
 | `saaras-v4-transcribe` | 6.7 | 0 | 6.7 | 6 of 135 | 0.4 |
 | `saaras-v4-verbatim` | 8.0 | 0 | 8.0 | 12 of 135 | 0.6 |
 | `mms-1b-all` | 23.1 | 0 | 23.1 | 67 of 135 | 4.0 |
-| `whisper-large-v3` | 26.7 | 0 | 26.7 | 25 of 135 | 1.2 |
-| `whisper-large-v3-turbo` | 31.3 | 1 | 28.8 | 32 of 135 | 1.7 |
+| `whisper-large-v3` | 26.5 | 0 | 26.5 | 21 of 135 | 1.1 |
+| `whisper-large-v3-turbo` | 31.2 | 1 | 28.7 | 30 of 135 | 1.7 |
 | `whisper-medium` | 48.9 | 1 | 44.2 | 48 of 135 | 2.5 |
 | `whisper-small` | 75.0 | 5 | 65.0 | 106 of 135 | 5.9 |
 <!-- /rq1-diagnostics -->
@@ -164,8 +164,8 @@ next:
 | `mms-1b-all` | +8.8 [+5.5, +11.5] | -1.3 [-1.9, -0.8] | -0.7 [-1.1, -0.3] |
 | `saaras-v4-transcribe` | +0.9 [-2.4, +3.5] | -1.7 [-2.4, -1.0] | -3.3 [-4.7, -2.0] |
 | `saaras-v4-verbatim` | +1.6 [-2.0, +4.5] | -1.7 [-2.5, -1.0] | -7.7 [-9.5, -6.0] |
-| `whisper-large-v3` | +8.4 [+4.7, +11.3] | -1.9 [-3.1, -0.8] | -0.7 [-1.2, -0.3] |
-| `whisper-large-v3-turbo` | +9.5 [+5.5, +13.4] | -1.9 [-3.1, -0.9] | -0.4 [-0.7, -0.1] |
+| `whisper-large-v3` | +8.3 [+4.5, +11.1] | -1.9 [-3.1, -0.8] | -0.8 [-1.2, -0.3] |
+| `whisper-large-v3-turbo` | +9.4 [+5.4, +13.3] | -1.9 [-3.1, -0.9] | -0.4 [-0.7, -0.1] |
 | `whisper-medium` | +12.3 [+7.3, +17.7] | -1.1 [-1.9, -0.4] | -0.4 [-0.8, -0.1] |
 | `whisper-small` | +8.1 [+0.7, +14.5] | -0.8 [-1.2, -0.4] | -0.6 [-1.0, -0.3] |
 <!-- /rq1-steps -->
@@ -210,11 +210,11 @@ trained on FLEURS train):
 <!-- rq1-wer-all-numeric -->
 | system | WER whisper | WER basic | WER spelling | WER numbers | numeric value error | lenient numeric error |
 |---|---|---|---|---|---|---|
-| `saaras-v4-transcribe` | 10.7 [9.3, 12.3] | 12.2 [11.3, 13.1] | 10.0 [9.1, 10.9] | 6.8 [6.1, 7.5] | 5.3 [3.4, 7.6] | 5.3 [3.4, 7.6] |
+| `saaras-v4-transcribe` | 10.7 [9.3, 12.3] | 12.2 [11.2, 13.1] | 10.0 [9.1, 10.9] | 6.8 [6.1, 7.5] | 5.3 [3.4, 7.6] | 5.3 [3.4, 7.6] |
 | `saaras-v4-verbatim` | 17.0 [15.2, 18.9] | 18.7 [17.5, 20.0] | 16.9 [15.7, 18.2] | 8.3 [7.5, 9.2] | 11.6 [8.5, 14.6] | 11.2 [8.2, 14.2] |
-| `whisper-large-v3` | 21.6 [20.3, 23.3] | 30.6 [29.4, 31.8] | 28.8 [27.7, 30.0] | 27.9 [26.8, 29.1] | 16.8 [13.6, 20.2] | 16.2 [13.1, 19.5] |
-| `whisper-large-v3-turbo` | 24.9 [23.2, 26.8] | 35.2 [33.3, 37.6] | 33.6 [31.6, 36.0] | 32.7 [30.8, 35.1] | 27.0 [23.2, 31.2] | 25.6 [22.1, 29.6] |
-| `whisper-medium` | 35.5 [33.2, 38.3] | 46.6 [44.3, 49.3] | 45.3 [43.0, 48.0] | 44.5 [42.2, 47.2] | 31.9 [27.6, 36.5] | 30.6 [26.3, 34.9] |
+| `whisper-large-v3` | 21.6 [20.3, 23.3] | 30.5 [29.3, 31.7] | 28.7 [27.6, 29.9] | 27.8 [26.7, 29.0] | 15.5 [12.7, 18.9] | 14.9 [12.2, 18.0] |
+| `whisper-large-v3-turbo` | 24.9 [23.2, 26.8] | 35.2 [33.3, 37.5] | 33.5 [31.6, 35.9] | 32.7 [30.7, 35.0] | 26.2 [22.6, 30.2] | 24.8 [21.3, 28.8] |
+| `whisper-medium` | 35.5 [33.2, 38.3] | 46.5 [44.2, 49.2] | 45.2 [42.9, 47.9] | 44.5 [42.2, 47.2] | 31.2 [26.7, 35.8] | 29.8 [25.5, 34.2] |
 | `whisper-small` | 69.6 [64.4, 75.4] | 84.8 [78.2, 92.4] | 84.2 [77.6, 91.8] | 83.6 [76.9, 91.2] | 72.0 [67.7, 76.3] | 68.7 [64.3, 73.2] |
 <!-- /rq1-wer-all-numeric -->
 
@@ -249,22 +249,22 @@ so `n` counts both utterances and sentences.
 | test set | system | n | WER real | WER synthetic | change (points) | numeric error real | numeric error synthetic |
 |---|---|---|---|---|---|---|---|
 | `bulbul-clean` | `mms-1b-all` | 49 | 24.0 | 20.2 | -3.7 [-7.9, +0.2] | 49.4 | 59.5 |
-| `bulbul-clean` | `whisper-large-v3` | 49 | 26.9 | 18.3 | -8.6 [-11.0, -6.3] | 15.2 | 16.5 |
+| `bulbul-clean` | `whisper-large-v3` | 49 | 26.7 | 18.1 | -8.6 [-11.0, -6.3] | 12.7 | 13.9 |
 | `bulbul-clean` | `whisper-large-v3-turbo` | 49 | 30.7 | 22.3 | -8.4 [-13.0, -3.4] | 24.1 | 24.1 |
 | `bulbul-clean` | `whisper-medium` | 49 | 54.8 | 31.8 | -23.0 [-42.7, -9.4] | 32.9 | 29.1 |
 | `bulbul-clean` | `whisper-small` | 49 | 78.7 | 50.3 | -28.4 [-45.4, -13.8] | 73.4 | 68.3 |
 | `bulbul-telephony` | `mms-1b-all` | 49 | 24.0 | 20.5 | -3.5 [-7.2, +0.0] | 49.4 | 60.8 |
-| `bulbul-telephony` | `whisper-large-v3` | 49 | 26.9 | 19.5 | -7.3 [-9.7, -5.1] | 15.2 | 17.7 |
+| `bulbul-telephony` | `whisper-large-v3` | 49 | 26.7 | 19.4 | -7.3 [-9.7, -5.1] | 12.7 | 15.2 |
 | `bulbul-telephony` | `whisper-large-v3-turbo` | 49 | 30.7 | 22.8 | -7.8 [-12.5, -2.9] | 24.1 | 20.2 |
 | `bulbul-telephony` | `whisper-medium` | 49 | 54.8 | 34.6 | -20.2 [-39.8, -6.4] | 32.9 | 35.4 |
 | `bulbul-telephony` | `whisper-small` | 49 | 78.7 | 63.2 | -15.6 [-35.3, +5.4] | 73.4 | 79.8 |
 | `mms-tts-clean` | `mms-1b-all` | 49 | 24.0 | 34.5 | +10.5 [+5.6, +15.0] | 49.4 | 73.4 |
-| `mms-tts-clean` | `whisper-large-v3` | 49 | 26.9 | 34.5 | +7.6 [+3.1, +13.3] | 15.2 | 29.1 |
+| `mms-tts-clean` | `whisper-large-v3` | 49 | 26.7 | 34.5 | +7.8 [+3.2, +13.5] | 12.7 | 29.1 |
 | `mms-tts-clean` | `whisper-large-v3-turbo` | 49 | 30.7 | 38.0 | +7.3 [+1.9, +13.2] | 24.1 | 36.7 |
 | `mms-tts-clean` | `whisper-medium` | 49 | 54.8 | 54.3 | -0.5 [-16.9, +14.4] | 32.9 | 49.4 |
 | `mms-tts-clean` | `whisper-small` | 49 | 78.7 | 82.5 | +3.7 [-22.4, +31.9] | 73.4 | 78.5 |
 | `mms-tts-telephony` | `mms-1b-all` | 49 | 24.0 | 34.7 | +10.7 [+6.1, +15.1] | 49.4 | 73.4 |
-| `mms-tts-telephony` | `whisper-large-v3` | 49 | 26.9 | 35.5 | +8.7 [+4.2, +14.2] | 15.2 | 32.9 |
+| `mms-tts-telephony` | `whisper-large-v3` | 49 | 26.7 | 35.5 | +8.8 [+4.3, +14.4] | 12.7 | 32.9 |
 | `mms-tts-telephony` | `whisper-large-v3-turbo` | 49 | 30.7 | 42.1 | +11.5 [+5.3, +17.5] | 24.1 | 39.2 |
 | `mms-tts-telephony` | `whisper-medium` | 49 | 54.8 | 50.8 | -4.0 [-26.1, +12.3] | 32.9 | 53.2 |
 | `mms-tts-telephony` | `whisper-small` | 49 | 78.7 | 80.3 | +1.5 [-21.9, +25.8] | 73.4 | 77.2 |
@@ -295,9 +295,9 @@ RQ1, no correction is made for multiple comparisons, within a row or across rows
 |---|---|---|---|---|---|---|
 | held-out, with numbers | second real recording | 26 | 5 | 1.00 [0.80, 1.00] | none | 0 |
 | held-out, with numbers | `bulbul-clean`, same sentences | 22 | 5 | 0.80 [0.60, 1.00] | `whisper-large-v3` vs `mms-1b-all` | 0 |
-| held-out, with numbers | `bulbul-clean`, all | 49 | 5 | 0.80 [0.60, 1.00] | `whisper-large-v3` vs `mms-1b-all` | 1 |
+| held-out, with numbers | `bulbul-clean`, all | 49 | 5 | 0.80 [0.60, 1.00] | `whisper-large-v3` vs `mms-1b-all` | 0 |
 | held-out, with numbers | `bulbul-telephony`, same sentences | 22 | 5 | 0.80 [0.60, 1.00] | `whisper-large-v3` vs `mms-1b-all` | 0 |
-| held-out, with numbers | `bulbul-telephony`, all | 49 | 5 | 0.80 [0.60, 1.00] | `whisper-large-v3` vs `mms-1b-all` | 1 |
+| held-out, with numbers | `bulbul-telephony`, all | 49 | 5 | 0.80 [0.60, 1.00] | `whisper-large-v3` vs `mms-1b-all` | 0 |
 | held-out, with numbers | `mms-tts-clean`, same sentences | 22 | 5 | 1.00 [0.80, 1.00] | none | 0 |
 | held-out, with numbers | `mms-tts-clean`, same sentences | 22 | 4, none from the TTS family | 1.00 [0.91, 1.00] | none | 0 |
 | held-out, with numbers | `mms-tts-clean`, all | 49 | 5 | 0.95 [0.60, 1.00] | none | 0 |
@@ -330,11 +330,11 @@ the sentences that have a second real recording.
 <!-- rq2-rho -->
 | compared with real speech | held-out, with numbers | all with numbers (no MMS) |
 |---|---|---|
-| second real recording | 0.37 (0.12 to 0.56) | 0.47 (0.43 to 0.50) |
+| second real recording | 0.37 (0.12 to 0.48) | 0.47 (0.43 to 0.50) |
 | `bulbul-clean` | 0.32 (0.00 to 0.57) | 0.42 (0.37 to 0.50) |
-| `bulbul-telephony` | 0.31 (0.07 to 0.50) | 0.47 (0.40 to 0.47) |
+| `bulbul-telephony` | 0.31 (0.07 to 0.50) | 0.47 (0.41 to 0.47) |
 | `mms-tts-clean` | 0.39 (-0.11 to 0.51) | 0.39 (0.29 to 0.55) |
-| `mms-tts-telephony` | 0.38 (-0.06 to 0.49) | 0.39 (0.32 to 0.41) |
+| `mms-tts-telephony` | 0.38 (-0.06 to 0.49) | 0.38 (0.32 to 0.41) |
 <!-- /rq2-rho -->
 
 Are the sentences the TTS step left out harder? Real-speech WER on the
@@ -346,13 +346,13 @@ splits only):
 |---|---|---|---|
 | `bulbul` | `whisper-small` | 77.5 (447) | 112.8 (41) |
 | `bulbul` | `whisper-medium` | 43.4 (447) | 45.3 (41) |
-| `bulbul` | `whisper-large-v3` | 26.7 (447) | 33.1 (41) |
-| `bulbul` | `whisper-large-v3-turbo` | 30.4 (447) | 40.4 (41) |
+| `bulbul` | `whisper-large-v3` | 26.7 (447) | 32.7 (41) |
+| `bulbul` | `whisper-large-v3-turbo` | 30.4 (447) | 40.0 (41) |
 | `bulbul` | `mms-1b-all` | 18.8 (199) | 27.2 (9) |
 | `mms-tts` | `whisper-small` | 77.5 (449) | 114.1 (39) |
 | `mms-tts` | `whisper-medium` | 43.4 (449) | 45.5 (39) |
-| `mms-tts` | `whisper-large-v3` | 26.7 (449) | 33.3 (39) |
-| `mms-tts` | `whisper-large-v3-turbo` | 30.4 (449) | 40.7 (39) |
+| `mms-tts` | `whisper-large-v3` | 26.7 (449) | 32.9 (39) |
+| `mms-tts` | `whisper-large-v3-turbo` | 30.4 (449) | 40.3 (39) |
 | `mms-tts` | `mms-1b-all` | 18.8 (199) | 27.2 (9) |
 <!-- /rq2-selection -->
 
@@ -362,7 +362,7 @@ Reading these tables:
   systems (MMS-1B, Whisper large-v3 and large-v3-turbo); telephony coding adds
   at most about 4 more points (large-v3-turbo, +7.3 to +11.5). For scale, on
   the 26 held-out sentences that have a second real recording, that recording
-  changes the WER of these three systems by -2.3 to -3.7 points (intervals
+  changes the WER of these three systems by -2.0 to -3.7 points (intervals
   include zero), while MMS-TTS on 22 of those sentences raises it by 6 to 13
   points; on those 22, MMS-1B's rise is not significant (+6.1 [-2.2, +13.7]
   clean, +7.2 [-0.6, +14.5] telephony). For Whisper small and medium the
@@ -373,7 +373,7 @@ Reading these tables:
   medium, and about 3.5 for MMS-1B (the intervals for MMS-1B reach zero, and
   for Whisper small on telephony include it). On 22 of the 26 sentences that
   have a second real recording it lowers the WER of the three strongest
-  systems by 5.9 to 11.1 points (intervals exclude zero), against -2.3 to
+  systems by 5.9 to 11.1 points (intervals exclude zero), against -2.0 to
   -3.7 for that recording on all 26 (intervals include zero). Why Whisper
   small and medium gain most, and MMS-1B least, is not established; no one
   has listened to the clips.
@@ -386,11 +386,10 @@ Reading these tables:
 - MMS-TTS: the one Kendall tau below 1 (0.95, clean, all sentences) is a
   tie, as MMS-1B and Whisper large-v3 both score 34.5%; it is not a flipped
   pair. Bulbul: tau is 0.80 in every held-out row because Whisper large-v3
-  and MMS-1B swap places. On all 49 sentences the swap counts as
-  significant, because the two differ on real speech (MMS-1B ahead by 2.9
-  [0.1, 5.6] points), but on Bulbul audio their difference is not
-  significant (large-v3 ahead by 2.0 [-1.1, 4.9] clean, 1.0 [-1.8, 4.0]
-  telephony); on the 22 same sentences the swap is not significant.
+  and MMS-1B swap places. The swap is not significant: the two are close on
+  real speech (MMS-1B ahead by 2.7 [-0.1, 5.4] points on the 49 sentences)
+  and on Bulbul audio (large-v3 ahead by 2.1 [-1.0, 5.1] clean, 1.2 [-1.7,
+  4.2] telephony).
 - Per-utterance difficulty: the median ρ for synthetic audio is similar to
   that for a second recording: 0.31 to 0.39 against 0.37 on held-out
   sentences, and 0.39 to 0.47 against 0.47 on all sentences with numbers.
@@ -503,7 +502,9 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
   number written as a word.
 - The numeric value error matches values anywhere in the hypothesis. The
   article "एक" and the verb "दो" (give) parse as 1 and 2, which can hide a
-  missed number; "अरब" (Arab) parses as 10⁹; leading zeros are dropped.
+  missed number; "अरब" (Arab) parses as 10⁹; leading zeros are dropped. A
+  clock time written with a dot is read as a time only beside a time word
+  ("6.30 बजे", "सुबह 6.30"); "11.20 पर" is still read as the decimal 11.2.
 - Whisper small and medium produce repetition loops on some utterances, which
   inflate their WER (see the table above); the ranking is the same without
   them. The Whisper runs predate the runner recording how many outputs hit the
@@ -548,6 +549,7 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
 | 2026-11-07 | Saaras v4 (queried on 6 November UTC) in `transcribe` and `verbatim` modes on real speech: number normalisation removes at least three quarters of the WER gap between the two modes. |
 | 2026-11-07 | Review fixes: the WER share of numbers is counted on the alignment (4.0 points for MMS, not at most 3.0); lenient matching forgives one number per word. |
 | 2026-11-07 | RQ2 with Bulbul as a second TTS engine: its audio is easier than real speech, least so for MMS-1B, and the narrow real-speech lead of MMS-1B over Whisper large-v3 becomes a near-tie the other way. The TTS engine, not only the ASR system, sets the synthetic result. |
+| 2026-11-07 | Scoring fix: "6.30 बजे" is the clock time 6:30, not the decimal 6.3. Whisper large-v3 now misses 21 of 135 held-out numbers (was 25), the RQ1 reversal widens, and the Bulbul swap of MMS-1B and large-v3 is no longer a significant flip: the two are close on real speech too. |
 
 Next:
 

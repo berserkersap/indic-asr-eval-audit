@@ -937,33 +937,33 @@ L 285.404908 178.988154
     </g>
    </g>
    <g id="LineCollection_5">
-    <path d="M 158.277447 256.706088
-L 190.44766 256.706088
+    <path d="M 157.676134 264.837763
+L 189.144816 264.837763
 " clip-path="url(#p7f623a0548)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.45"/>
    </g>
    <g id="LineCollection_6">
-    <path d="M 173.911569 286.265825
-L 173.911569 225.388151
+    <path d="M 173.05971 289.425091
+L 173.05971 238.904313
 " clip-path="url(#p7f623a0548)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.45"/>
    </g>
    <g id="line2d_23">
     <g clip-path="url(#p7f623a0548)">
-     <use xlink:href="#m2651671853" x="173.911569" y="256.706088" style="fill: #2a78d6; stroke: #000000; stroke-opacity: 0"/>
+     <use xlink:href="#m2651671853" x="173.05971" y="264.837763" style="fill: #2a78d6; stroke: #000000; stroke-opacity: 0"/>
     </g>
    </g>
    <g id="LineCollection_7">
-    <path d="M 172.157741 242.475657
-L 233.692042 242.475657
+    <path d="M 172.057522 246.541494
+L 233.441495 246.541494
 " clip-path="url(#p7f623a0548)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.45"/>
    </g>
    <g id="LineCollection_8">
-    <path d="M 197.212424 271.073878
-L 197.212424 210.745641
+    <path d="M 196.76144 272.969438
+L 196.76144 217.915801
 " clip-path="url(#p7f623a0548)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.45"/>
    </g>
    <g id="line2d_24">
     <g clip-path="url(#p7f623a0548)">
-     <use xlink:href="#m2651671853" x="197.212424" y="242.475657" style="fill: #2a78d6; stroke: #000000; stroke-opacity: 0"/>
+     <use xlink:href="#m2651671853" x="196.76144" y="246.541494" style="fill: #2a78d6; stroke: #000000; stroke-opacity: 0"/>
     </g>
    </g>
    <g id="LineCollection_9">
@@ -1131,7 +1131,7 @@ z
    </g>
    <g id="text_15">
     <!-- Whisper large-v3 -->
-    <g style="fill: #0b0b0b" transform="translate(183.911569 259.04433) scale(0.09 -0.09)">
+    <g style="fill: #0b0b0b" transform="translate(183.05971 267.176005) scale(0.09 -0.09)">
      <defs>
       <path id="DejaVuSans-4a" d="M 2906 1791
 Q 2906 2416 2648 2759
@@ -1227,7 +1227,7 @@ z
    </g>
    <g id="text_16">
     <!-- Whisper large-v3-turbo -->
-    <g style="fill: #0b0b0b" transform="translate(207.212424 244.813899) scale(0.09 -0.09)">
+    <g style="fill: #0b0b0b" transform="translate(206.76144 248.879736) scale(0.09 -0.09)">
      <use xlink:href="#DejaVuSans-3a"/>
      <use xlink:href="#DejaVuSans-4b" transform="translate(98.875 0)"/>
      <use xlink:href="#DejaVuSans-4c" transform="translate(162.25 0)"/>

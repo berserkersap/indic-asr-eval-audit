@@ -1,13 +1,13 @@
 subset,system,spearman_rho
 held_out_numeric,whisper-small,0.3023
 held_out_numeric,whisper-medium,0.3428
-held_out_numeric,whisper-large-v3,0.4248
+held_out_numeric,whisper-large-v3,0.432
 held_out_numeric,whisper-large-v3-turbo,0.4131
 held_out_numeric,mms-1b-all,0.2009
 numeric,whisper-small,0.4162
 numeric,whisper-medium,0.3136
-numeric,whisper-large-v3,0.3671
-numeric,whisper-large-v3-turbo,0.3601
+numeric,whisper-large-v3,0.3666
+numeric,whisper-large-v3-turbo,0.3593
 control,whisper-small,0.3552
 control,whisper-medium,0.4613
 control,whisper-large-v3,0.4361
