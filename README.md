@@ -4,6 +4,38 @@
 
 Auditing how Indic ASR is evaluated: number-aware metrics and synthetic-vs-real test sets.
 
+**Hindi ASR is ranked by word error rate (WER), but Indian voice products act
+on numbers: amounts, dates, quantities. On FLEURS Hindi, WER and a
+number-aware metric pick different winners, and a synthetic copy of the test
+set measures the TTS engine as much as the ASR system.**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="results/figures/rq1-wer-vs-numbers-dark.svg">
+  <img alt="WER against the share of numbers missed for each system: MMS-1B has the lowest WER of the open systems but misses about half of the numbers" src="results/figures/rq1-wer-vs-numbers-light.svg">
+</picture>
+
+*Held-out utterances with numbers; point estimates and 95% intervals from the
+RQ1 table below. Saaras is a hosted model that may have seen FLEURS, so it is
+not a like-for-like comparison with the open systems.*
+
+- **WER would pick the wrong open system for numbers.** MMS-1B has the lowest
+  WER of the five open systems (23.1%) but misses 67 of 135 numbers; Whisper
+  large-v3 (26.5% WER) misses 21. Both the WER and the numeric difference are
+  significant (paired cluster bootstrap).
+- **Most of the gap between Saaras v4's two output modes is number
+  formatting.** `verbatim` looks 5.9 WER points worse than `transcribe`;
+  normalising numbers leaves 1.4. In `transcribe` mode Saaras misses 6 of the
+  135 numbers, and every other system misses 5 of those 6 too.
+- **A synthetic test set measures the TTS engine.** Spoken by MMS-TTS, the
+  same sentences make the strongest systems 7 to 12 WER points worse; spoken
+  by Sarvam's Bulbul, 7 to 9 points better for the Whisper large models.
+
+**What is new here:** a deterministic, property-tested parser for spoken Hindi
+numbers (Indian place values, fraction words such as "ढाई सौ", ordinals, mixed
+digits and words) used as a judge-free metric, and synthetic-versus-real
+comparisons with a second real recording as the noise ceiling. Every table and
+figure is regenerated on a CPU from the committed transcripts.
+
 Hindi ASR is usually compared by word error rate (WER) after some text
 normalisation. This repo asks two questions about that practice, on real
 Hindi speech, with confidence intervals:
@@ -40,7 +72,12 @@ intervals:
   normalised edit distance) changes this very little, so it is not an
   artefact of strict spelling. Among the four Whisper models the two metrics
   agree. The sample is small and the intervals are wide, but where numbers
-  matter, WER alone would pick the wrong one of these two systems.
+  matter, WER alone would pick the wrong one of these two systems. MMS-1B was
+  fine-tuned on FLEURS train, and its WER there is 15.3% against 23.1% on dev
+  and test, while Whisper and Saaras score about the same on both (see the
+  training-data check), so part of its WER lead may be adaptation to FLEURS.
+  Its misses are mostly a wrong number in the right place ("176" for 1767);
+  Whisper's are mostly a misspelled number word.
 - **WER can barely see numbers.** Numbers are 6% of the reference words, so
   word errors on numbers (any error that involves a word with a digit)
   account for only 4.0 of MMS's WER points, although it misses 67 numbers.
@@ -61,9 +98,11 @@ intervals:
   references.
 - **Saaras v4 has the lowest WER at every normalisation level** (held-out with
   numbers: 6.7% in `transcribe` mode at the `numbers` level, 11.6% at `basic`;
-  6 of 135 numbers missed). Whether FLEURS was in its training data is not
-  known, so this is not a like-for-like comparison with the open systems and
-  does not show that Saaras is better in general.
+  6 of 135 numbers missed, 5 of them missed by every system). Whether FLEURS
+  was in its training data is not known. Saaras shows no advantage on FLEURS
+  train (6.8% WER there, 6.7% on dev and test), unlike MMS-1B, but that cannot
+  rule it out, so this is not a like-for-like comparison with the open systems
+  and does not show that Saaras is better in general.
 - **The stock Whisper normaliser makes Hindi WER look 8 to 12 points lower**
   for each open system on the held-out set (8 to 19 points across all
   subsets), because it deletes vowel signs and so splits words. It does not
@@ -81,7 +120,9 @@ intervals:
   points [-0.1, 5.4]; on Bulbul audio large-v3 is 1 to 2 points ahead.
   Neither difference is significant, so this is a near-tie that changes sign,
   not an established reordering, but it lowers Kendall tau to 0.80, where a
-  second real recording gives 1.00; with MMS-TTS no pair swaps order. On
+  second real recording gives 1.00; with MMS-TTS no pair swaps order.
+  MMS-1B writes numbers as digits much less often on synthetic audio (24 to
+  67%, against 81% on real speech), while Whisper large-v3 changes little. On
   numbers,
   MMS-TTS raises the numeric value error by 13 to 24 points for the three
   strongest systems, while Bulbul changes it by -4 to +3 points for the
@@ -115,15 +156,6 @@ WER at the `numbers` level.
 | `whisper-small` | 68.3 [55.9, 83.4] | 76.4 [66.9, 87.8] | 75.6 [66.0, 87.1] | 75.0 [65.5, 86.5] | 78.5 [69.2, 86.3] | 77.0 [67.5, 84.8] |
 <!-- /rq1-wer -->
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="results/figures/rq1-wer-vs-numbers-dark.svg">
-  <img alt="WER against the share of numbers missed for each system: MMS-1B has the lowest WER of the open systems but misses about half of the numbers" src="results/figures/rq1-wer-vs-numbers-light.svg">
-</picture>
-
-*Point estimates and 95% intervals from the table above. Saaras is a hosted
-model that may have seen FLEURS, so it is not a like-for-like comparison with
-the open systems.*
-
 Pairs of systems that WER (at the `numbers` level) and the numeric value error
 put in opposite order. A reversal is significant when the paired bootstrap
 intervals of both differences exclude zero; the two significant pairs share
@@ -154,6 +186,80 @@ several: "8 0 0" for 800 is three).
 | `whisper-medium` | 48.9 | 1 | 44.2 | 48 of 135 | 2.5 |
 | `whisper-small` | 75.0 | 5 | 65.0 | 106 of 135 | 5.9 |
 <!-- /rq1-diagnostics -->
+
+The headline figure at the top plots WER against the numeric value error for
+this subset.
+
+### Where the missed numbers go
+
+How each missed number went wrong, from the word alignment at the `numbers`
+level (held-out utterances with numbers): **another number** in its place (a
+wrong value), **a word** that is not a number (usually a misspelled number
+word), or **dropped**. **Other** means the number's place could not be found,
+as for a leading zero. The last column is the share of the numbers in the
+system's output that are written as digits; the article "एक" counts as a
+number word.
+
+<!-- rq1-miss-kinds -->
+| system | missed | another number | a word | dropped | other | numbers written as digits |
+|---|---|---|---|---|---|---|
+| `saaras-v4-transcribe` | 6 of 135 | 2 | 0 | 4 | 0 | 52% |
+| `saaras-v4-verbatim` | 12 of 135 | 2 | 6 | 4 | 0 | 17% |
+| `whisper-large-v3` | 21 of 135 | 4 | 11 | 5 | 1 | 85% |
+| `whisper-large-v3-turbo` | 30 of 135 | 2 | 21 | 7 | 0 | 82% |
+| `whisper-medium` | 48 of 135 | 5 | 33 | 10 | 0 | 80% |
+| `mms-1b-all` | 67 of 135 | 44 | 8 | 15 | 0 | 82% |
+| `whisper-small` | 106 of 135 | 3 | 87 | 16 | 0 | 37% |
+
+The references write 84% of their numbers as digits (135 of 161 numbers).
+<!-- /rq1-miss-kinds -->
+
+MMS-1B mostly writes a wrong number, often a truncated digit string, which is
+consistent with a character-level CTC model decoded without a language model.
+Whisper mostly writes a number word that does not parse. Examples from the
+held-out set:
+
+| reference | MMS-1B | Whisper large-v3 | Saaras v4 `transcribe` |
+|---|---|---|---|
+| 1767 में | 176 में | 1766 में | 1767 में |
+| करीब 70 किलोमीटर | करीब 7त्तर किलोमीटर | करीब 70 किलोमीटर | करीब 70 किलोमीटर |
+| केवल 41 गेंदों में 11 चौकों | केवल 1 गेंदों में 1 चौंकों | केवल 41 गेंदों में 11 चौंकों | केवल 41 गेंदों में 11 चौकों |
+
+A check on the references:
+
+<!-- rq1-missed-by-all -->
+5 of the 135 numbers are missed by all 7 systems: 1000 and 1300 (sentence 1732); 35 (sentence 1748); 10 and 60 (sentence 1773). Without them, the systems miss this many of the other 130: `saaras-v4-transcribe` 1, `saaras-v4-verbatim` 7, `whisper-large-v3` 16, `whisper-large-v3-turbo` 25, `whisper-medium` 43, `mms-1b-all` 62, `whisper-small` 101.
+<!-- /rq1-missed-by-all -->
+
+These five are probably not spoken as written. In two sentences every system
+leaves out a range in brackets, "(AD 1000-1300)" and "(10-60 मिनट)", which
+the speaker seems to skip, and for "11:35 बजे" both Saaras modes, Whisper
+large-v3 and MMS-1B ("1145") write 45. No one has listened to the clips, so
+this is an inference from the transcripts; every other table still scores all
+135 numbers.
+
+### Training-data check
+
+A system trained on FLEURS train should score better on train than on dev and
+test. WER at the `numbers` level on all utterances with numbers, by split;
+here every system is scored on train, MMS-1B included:
+
+<!-- rq1-split-wer -->
+| system | WER on train (438) | WER on dev and test (85) |
+|---|---|---|
+| `whisper-small` | 85.3 [77.7, 93.9] | 75.0 [65.5, 86.5] |
+| `whisper-medium` | 43.6 [41.9, 45.5] | 48.9 [39.5, 62.4] |
+| `whisper-large-v3` | 28.1 [26.9, 29.4] | 26.5 [23.4, 29.7] |
+| `whisper-large-v3-turbo` | 33.0 [31.0, 35.4] | 31.2 [26.3, 38.5] |
+| `mms-1b-all` | 15.3 [14.3, 16.3] | 23.1 [20.4, 25.9] |
+| `saaras-v4-transcribe` | 6.8 [6.0, 7.6] | 6.7 [5.2, 8.3] |
+| `saaras-v4-verbatim` | 8.3 [7.4, 9.3] | 8.0 [6.3, 10.1] |
+<!-- /rq1-split-wer -->
+
+MMS-1B, fine-tuned on FLEURS train, is about 8 points better there; Whisper
+and Saaras score about the same on both. That does not show that Whisper or
+Saaras never saw FLEURS, since dev and test could have been in their data as
+well, only that they show no sign of the train split.
 
 Paired change in WER (percentage points) from one normalisation level to the
 next:
@@ -279,6 +385,26 @@ so `n` counts both utterances and sentences.
 table above); every dot in a row scores the same 49 sentences. Colour is the TTS
 vendor: orange for MMS-TTS (Meta, just above each row), green for Bulbul (Sarvam,
 just below).*
+
+How the systems write numbers on synthetic audio: the share of the numbers in
+their output written as digits, on the 49 held-out sentences.
+
+<!-- rq2-number-format -->
+| system | real speech | `bulbul-clean` | `bulbul-telephony` | `mms-tts-clean` | `mms-tts-telephony` |
+|---|---|---|---|---|---|
+| `whisper-small` | 28% | 41% | 36% | 16% | 16% |
+| `whisper-medium` | 76% | 74% | 64% | 65% | 59% |
+| `whisper-large-v3` | 83% | 80% | 80% | 71% | 70% |
+| `whisper-large-v3-turbo` | 81% | 76% | 75% | 67% | 66% |
+| `mms-1b-all` | 81% | 62% | 67% | 24% | 39% |
+<!-- /rq2-number-format -->
+
+On real speech MMS-1B writes numbers as digits about as often as the Whisper
+large models, and as the FLEURS references do (84%). On synthetic audio it
+does so much less often (62 to 67% on Bulbul, 24 to 39% on MMS-TTS), while
+Whisper large-v3 changes little (70 to 80%, against 83%). MMS-1B's digit habit
+seems tied to FLEURS-like audio, which may be part of why Bulbul helps it
+least; that is not established.
 
 Does the synthetic set rank systems the way real speech does? Kendall tau
 between the WER rankings on real and on other audio, with a 95% bootstrap
@@ -494,6 +620,13 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
 - The held-out subset is small (85 utterances, 56 sentences, 135 numbers), so
   its intervals are wide, and only one system (MMS) differs in kind from the
   Whisper family.
+- Leaving FLEURS train out does not remove MMS-1B's advantage on FLEURS-like
+  audio: it was fine-tuned on recordings from the same collection, speakers
+  may overlap across splits (FLEURS has no speaker ids), and it scores 8
+  points better on train than on dev and test (see the training-data check).
+- Five held-out reference numbers are probably not spoken as written (see the
+  check on the references); they are still scored, which raises every
+  system's numeric value error by up to 5 of 135 numbers.
 - The numeric value error is strict about spelling. The lenient variant
   bounds this effect from one side: it forgives only close misspellings, so a
   badly garbled but recognisable number word still counts as missed, and it
@@ -550,6 +683,7 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
 | 2026-11-07 | Review fixes: the WER share of numbers is counted on the alignment (4.0 points for MMS, not at most 3.0); lenient matching forgives one number per word. |
 | 2026-11-07 | RQ2 with Bulbul as a second TTS engine: its audio is easier than real speech, least so for MMS-1B, and the narrow real-speech lead of MMS-1B over Whisper large-v3 becomes a near-tie the other way. The TTS engine, not only the ASR system, sets the synthetic result. |
 | 2026-11-07 | Scoring fix: "6.30 बजे" is the clock time 6:30, not the decimal 6.3. Whisper large-v3 now misses 21 of 135 held-out numbers (was 25), the RQ1 reversal widens, and the Bulbul swap of MMS-1B and large-v3 is no longer a significant flip: the two are close on real speech too. |
+| 2026-11-07 | Where the numbers go: MMS-1B mostly writes a wrong number, Whisper a misspelled number word; 5 of 135 held-out reference numbers are missed by every system and are probably not spoken; MMS-1B is 8 WER points better on FLEURS train, Whisper and Saaras are not; MMS-1B writes far fewer digits on synthetic audio. The headline figure moves to the top. |
 
 Next:
 

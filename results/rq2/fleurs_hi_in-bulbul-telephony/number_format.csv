@@ -1,0 +1,6 @@
+system,digit_share_real,digit_share_synthetic
+whisper-small,0.275,0.3571
+whisper-medium,0.7612,0.64
+whisper-large-v3,0.8256,0.8023
+whisper-large-v3-turbo,0.8125,0.75
+mms-1b-all,0.8065,0.6703
