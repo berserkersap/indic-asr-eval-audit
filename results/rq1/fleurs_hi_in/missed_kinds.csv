@@ -1,7 +1,7 @@
 system,numbers,missed,another number,a word,dropped,other
 whisper-small,135,106,3,87,16,0
 whisper-medium,135,48,5,33,10,0
-whisper-large-v3,135,21,4,11,5,1
+whisper-large-v3,135,21,4,11,6,0
 whisper-large-v3-turbo,135,30,2,21,7,0
 mms-1b-all,135,67,44,8,15,0
 saaras-v4-transcribe,135,6,2,0,4,0

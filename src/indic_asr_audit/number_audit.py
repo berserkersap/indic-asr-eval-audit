@@ -12,7 +12,7 @@ import pandas as pd
 
 from indic_asr_audit.data import Utterance
 from indic_asr_audit.languages.base import LanguagePack
-from indic_asr_audit.metrics import missed_values, word_counts
+from indic_asr_audit.metrics import missed_values, reference_values, word_counts
 from indic_asr_audit.normalize import Level, normalize, numeric_tokens
 from indic_asr_audit.numbers import find_numbers
 from indic_asr_audit.stats import bootstrap_rate
@@ -31,7 +31,9 @@ def _aligned(ref_words: list[str], hyp_words: list[str]) -> list[str | None]:
     if not ref_words or not hyp_words:
         return slots
     for chunk in jiwer.process_words(" ".join(ref_words), " ".join(hyp_words)).alignments[0]:
-        if chunk.type in ("equal", "substitute"):  # same length on both sides
+        # Equal and substitute chunks have the same length on both sides; insert
+        # chunks have no reference word, and delete chunks leave the slot None.
+        if chunk.type in ("equal", "substitute"):
             for k in range(chunk.ref_end_idx - chunk.ref_start_idx):
                 slots[chunk.ref_start_idx + k] = hyp_words[chunk.hyp_start_idx + k]
     return slots
@@ -43,27 +45,31 @@ def miss_kinds(reference: str, hypothesis: str, pack: LanguagePack) -> Counter[s
     The texts are aligned at the ``numbers`` level, where numbers are digits.
     A missed number's slot holds "another number" (a wrong value, in digits
     or words), "a word" that is not a number (often a misspelled number
-    word), or nothing ("dropped"). "other" is a number whose slot cannot be
-    found, such as one with a leading zero.
+    word), or nothing ("dropped"). When a value occurs more than once, the
+    missed one is the occurrence whose slot does not hold it. "other" is a
+    number whose place cannot be found among the reference words at the
+    numbers level (none of them is the value).
     """
     missed = missed_values(reference, hypothesis, pack)
     if not missed:
         return Counter()
-    ref_words = normalize(reference, pack, Level.NUMBERS).split()
-    slots = _aligned(ref_words, normalize(hypothesis, pack, Level.NUMBERS).split())
+    ref_words = _numbers_level(reference, pack).split()
+    slots = _aligned(ref_words, _numbers_level(hypothesis, pack).split())
     kinds: Counter[str] = Counter()
     used: set[int] = set()
     for value in sorted(missed.elements()):
-        index = next((i for i, w in enumerate(ref_words) if w == value and i not in used), None)
-        if index is None:
+        places = [i for i, w in enumerate(ref_words) if w == value and i not in used]
+        if not places:
             kinds["other"] += 1
             continue
+        # A found occurrence holds the value; the missed one is another.
+        index = next((i for i in places if slots[i] != value), places[0])
         used.add(index)
         word = slots[index]
         if word is None:
             kinds["dropped"] += 1
         elif find_numbers([word], pack):
-            kinds["another number" if word != value else "other"] += 1
+            kinds["another number"] += 1
         else:
             kinds["a word"] += 1
     return kinds
@@ -73,12 +79,12 @@ def miss_kinds_table(
     utterances: Sequence[Utterance], transcripts: Transcripts, pack: LanguagePack
 ) -> pd.DataFrame:
     """Per system: numbers scored, missed, and how the missed ones went wrong."""
+    total = sum(sum(reference_values(u.text, pack).values()) for u in utterances)
     rows = []
     for system, hyps in transcripts.items():
         kinds: Counter[str] = Counter()
         for u in utterances:
             kinds += miss_kinds(u.text, hyps[u.id], pack)
-        total = sum(sum(missed_values(u.text, "", pack).values()) for u in utterances)
         rows.append(
             {"system": system, "numbers": total, "missed": sum(kinds.values())}
             | {kind: kinds[kind] for kind in MISS_KINDS}

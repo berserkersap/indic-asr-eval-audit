@@ -112,10 +112,14 @@ def _wanted_and_found(
     reference: str, hypothesis: str, pack: LanguagePack
 ) -> tuple[Counter[str], Counter[str]]:
     """Values written as digits in the reference, and every value in the hypothesis."""
-    ref_spans = find_numbers(numeric_tokens(reference, pack), pack)
-    wanted = Counter(s.value for s in ref_spans if s.written_as_digits)
     found = Counter(s.value for s in find_numbers(numeric_tokens(hypothesis, pack), pack))
-    return wanted, found
+    return reference_values(reference, pack), found
+
+
+def reference_values(reference: str, pack: LanguagePack) -> Counter[str]:
+    """The values the numeric value error scores: numbers written as digits in the reference."""
+    spans = find_numbers(numeric_tokens(reference, pack), pack)
+    return Counter(s.value for s in spans if s.written_as_digits)
 
 
 def missed_values(reference: str, hypothesis: str, pack: LanguagePack) -> Counter[str]:

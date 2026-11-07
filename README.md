@@ -74,8 +74,9 @@ intervals:
   agree. The sample is small and the intervals are wide, but where numbers
   matter, WER alone would pick the wrong one of these two systems. MMS-1B was
   fine-tuned on FLEURS train, and its WER there is 15.3% against 23.1% on dev
-  and test, while Whisper and Saaras score about the same on both (see the
-  training-data check), so part of its WER lead may be adaptation to FLEURS.
+  and test, while Saaras and the Whisper large models score about the same on
+  both (see the training-data check), so part of its WER lead may be
+  adaptation to FLEURS.
   Its misses are mostly a wrong number in the right place ("176" for 1767);
   Whisper's are mostly a misspelled number word.
 - **WER can barely see numbers.** Numbers are 6% of the reference words, so
@@ -195,17 +196,17 @@ this subset.
 How each missed number went wrong, from the word alignment at the `numbers`
 level (held-out utterances with numbers): **another number** in its place (a
 wrong value), **a word** that is not a number (usually a misspelled number
-word), or **dropped**. **Other** means the number's place could not be found,
-as for a leading zero. The last column is the share of the numbers in the
-system's output that are written as digits; the article "एक" counts as a
-number word.
+word), or **dropped**. **Other** means no reference word at the `numbers`
+level is the value, so its place cannot be found. The last column is the share
+of the numbers in the system's output that are written as digits; the article
+"एक" counts as a number word.
 
 <!-- rq1-miss-kinds -->
 | system | missed | another number | a word | dropped | other | numbers written as digits |
 |---|---|---|---|---|---|---|
 | `saaras-v4-transcribe` | 6 of 135 | 2 | 0 | 4 | 0 | 52% |
 | `saaras-v4-verbatim` | 12 of 135 | 2 | 6 | 4 | 0 | 17% |
-| `whisper-large-v3` | 21 of 135 | 4 | 11 | 5 | 1 | 85% |
+| `whisper-large-v3` | 21 of 135 | 4 | 11 | 6 | 0 | 85% |
 | `whisper-large-v3-turbo` | 30 of 135 | 2 | 21 | 7 | 0 | 82% |
 | `whisper-medium` | 48 of 135 | 5 | 33 | 10 | 0 | 80% |
 | `mms-1b-all` | 67 of 135 | 44 | 8 | 15 | 0 | 82% |
@@ -231,17 +232,21 @@ A check on the references:
 5 of the 135 numbers are missed by all 7 systems: 1000 and 1300 (sentence 1732); 35 (sentence 1748); 10 and 60 (sentence 1773). Without them, the systems miss this many of the other 130: `saaras-v4-transcribe` 1, `saaras-v4-verbatim` 7, `whisper-large-v3` 16, `whisper-large-v3-turbo` 25, `whisper-medium` 43, `mms-1b-all` 62, `whisper-small` 101.
 <!-- /rq1-missed-by-all -->
 
-These five are probably not spoken as written. In two sentences every system
-leaves out a range in brackets, "(AD 1000-1300)" and "(10-60 मिनट)", which
-the speaker seems to skip, and for "11:35 बजे" both Saaras modes, Whisper
-large-v3 and MMS-1B ("1145") write 45. No one has listened to the clips, so
-this is an inference from the transcripts; every other table still scores all
-135 numbers.
+These five are probably not spoken as written in these recordings, although
+the references are right. In sentences 1732 and 1773 every system leaves out a
+range in brackets, "(AD 1000-1300)" and "(10-60 मिनट)", which the speaker
+seems to skip; sentence 1732 has a second recording in which the range is
+read and Saaras transcribes it ("1000 to 1300"). For "11:35 बजे" (sentence 1748), both
+Saaras modes, Whisper large-v3 and MMS-1B ("1145") write 45, while in the
+sentence's second recording Saaras writes 35. No one has listened to the
+clips, so this is an inference from the transcripts; every other table still
+scores all 135 numbers.
 
 ### Training-data check
 
 A system trained on FLEURS train should score better on train than on dev and
-test. WER at the `numbers` level on all utterances with numbers, by split;
+test. The splits hold different sentences, so the other systems serve as the
+control. WER at the `numbers` level on all utterances with numbers, by split;
 here every system is scored on train, MMS-1B included:
 
 <!-- rq1-split-wer -->
@@ -256,8 +261,10 @@ here every system is scored on train, MMS-1B included:
 | `saaras-v4-verbatim` | 8.3 [7.4, 9.3] | 8.0 [6.3, 10.1] |
 <!-- /rq1-split-wer -->
 
-MMS-1B, fine-tuned on FLEURS train, is about 8 points better there; Whisper
-and Saaras score about the same on both. That does not show that Whisper or
+MMS-1B, fine-tuned on FLEURS train ([Pratap et al., 2023](https://arxiv.org/abs/2305.13516),
+§5.4), is about 8 points better there. Saaras and Whisper large-v3 and
+large-v3-turbo score about the same on both; Whisper small and medium differ
+in opposite directions with wide intervals. That does not show that Whisper or
 Saaras never saw FLEURS, since dev and test could have been in their data as
 well, only that they show no sign of the train split.
 
@@ -624,9 +631,10 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
   audio: it was fine-tuned on recordings from the same collection, speakers
   may overlap across splits (FLEURS has no speaker ids), and it scores 8
   points better on train than on dev and test (see the training-data check).
-- Five held-out reference numbers are probably not spoken as written (see the
-  check on the references); they are still scored, which raises every
-  system's numeric value error by up to 5 of 135 numbers.
+- Five held-out reference numbers are probably not spoken in their
+  recordings (see the check on the references), although the references are
+  right; they are still scored, which raises every system's numeric value
+  error by 5 of 135 numbers.
 - The numeric value error is strict about spelling. The lenient variant
   bounds this effect from one side: it forgives only close misspellings, so a
   badly garbled but recognisable number word still counts as missed, and it

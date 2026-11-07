@@ -304,8 +304,8 @@ def render_rq1(results_dir: Path, subset: str = "held_out_numeric") -> dict[str,
     if disagreement.exists():
         blocks["rq1-disagreement"] = disagreement_table(pd.read_csv(disagreement))
     kinds = _read(results_dir / "missed_kinds.csv")
-    if not kinds.empty:
-        formats = _read(results_dir / "number_format.csv")
+    formats = _read(results_dir / "number_format.csv")
+    if not kinds.empty and not formats.empty:
         blocks["rq1-miss-kinds"] = miss_kinds_markdown(kinds, formats)
         blocks["rq1-missed-by-all"] = missed_by_all_line(
             pd.read_csv(results_dir / "missed_by_all.csv", dtype={"value": str}), kinds

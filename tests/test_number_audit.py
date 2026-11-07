@@ -36,6 +36,9 @@ def _utt(i: int, text: str, split: str = "test", sentence: str | None = None) ->
         ("उसकी 53 साल उम्र", "उसकी साल उम्र", {"dropped": 1}),
         ("उसकी 53 साल उम्र", "उसकी तिरेपन साल उम्र", {}),
         ("उसकी 53 साल उम्र", "", {"dropped": 1}),
+        # The second 11 is the one missed; the first is found.
+        ("11 चौकों और 11 रन", "11 चौकों और 1 रन", {"another number": 1}),
+        ("कुल 53 लोग", "आज कुल बहुत से 35 लोग थे", {"another number": 1}),  # inserted words
     ],
 )
 def test_miss_kinds(reference: str, hypothesis: str, expected: dict[str, int]) -> None:
@@ -53,6 +56,17 @@ def test_missed_by_all_keeps_only_numbers_every_system_misses() -> None:
     transcripts = {"a": {"u0": "सन 176 में लोग"}, "b": {"u0": "सन 1767 में लोग"}}
     table = missed_by_all(utts, transcripts, HINDI)
     assert table[["id", "value"]].values.tolist() == [["u0", "53"]]
+
+
+def test_missed_by_all_handles_repeats_and_no_common_miss() -> None:
+    utts = [_utt(0, "53 और 53 लोग"), _utt(1, "कुल 7 दिन")]
+    transcripts = {"a": {"u0": "लोग", "u1": "कुल दिन"}, "b": {"u0": "53 लोग", "u1": "कुल 7 दिन"}}
+    table = missed_by_all(utts, transcripts, HINDI)
+    assert table[["id", "value"]].values.tolist() == [["u0", "53"]]  # b found one of the two
+    assert missed_by_all(utts, {"b": transcripts["b"]}, HINDI).values.tolist() == [
+        ["u0", "s0", "53"]
+    ]
+    assert missed_by_all([utts[1]], {"b": transcripts["b"]}, HINDI).empty
 
 
 def test_digit_share_counts_digits_and_words() -> None:
