@@ -16,6 +16,7 @@ from indic_asr_audit.plots import (
     real_vs_synthetic,
     vendor,
     wer_by_level,
+    wer_vs_numbers,
 )
 
 SYSTEMS = ["mms-1b-all", "saaras-v4-transcribe", "whisper-large-v3"]
@@ -60,6 +61,7 @@ def test_every_line_keeps_its_vendor_colour_in_every_panel() -> None:
     with mpl.rc_context(RC):
         for theme in THEMES:
             fig = wer_by_level(_scores(), theme)
+            assert fig is not None
             for ax in fig.axes:
                 for line in ax.get_lines():
                     expected = theme.vendors[vendor(str(line.get_label()))]
@@ -71,6 +73,52 @@ def test_spread_keeps_order_and_minimum_gap() -> None:
     ranked = sorted(out)
     assert [out.index(v) for v in ranked] == [0, 1, 3, 2]
     assert all(b - a >= 2.0 - 1e-9 for a, b in itertools.pairwise(ranked))
+
+
+def test_spread_leaves_labels_with_room_on_their_values() -> None:
+    assert _spread([50.0, 10.0, 11.0, 12.0, 13.0], gap=4.0)[0] == 50.0
+    assert _spread([0.5, 1.0], gap=4.0) == [0.0, 4.0]  # not pushed below the axis
+
+
+def test_scatter_points_take_their_vendor_colour() -> None:
+    with mpl.rc_context(RC):
+        for theme in THEMES:
+            fig = wer_vs_numbers(_scores(), theme)
+            assert fig is not None
+            points = [ln for ln in fig.axes[0].get_lines() if ln.get_label() in SYSTEMS]
+            assert len(points) == len(SYSTEMS)
+            for line in points:
+                expected = theme.vendors[vendor(str(line.get_label()))]
+                assert to_hex(line.get_color()) == expected
+
+
+def test_figures_without_data_are_skipped() -> None:
+    empty = _scores().iloc[:0]
+    with mpl.rc_context(RC):
+        assert wer_vs_numbers(_scores(), THEMES[0], subset="missing") is None
+        assert wer_by_level(empty, THEMES[0]) is None
+        assert real_vs_synthetic({"bulbul-clean": pd.DataFrame()}, THEMES[0]) is None
+        only_other = {name: t.assign(subset="control") for name, t in _gaps().items()}
+        assert real_vs_synthetic(only_other, THEMES[0]) is None
+
+
+def test_real_vs_synthetic_draws_only_shared_systems() -> None:
+    gaps = _gaps()
+    gaps["bulbul-telephony"] = gaps["bulbul-telephony"].iloc[1:]  # drops mms-1b-all
+    with mpl.rc_context(RC):
+        fig = real_vs_synthetic(gaps, THEMES[0])
+    assert fig is not None
+    assert [t.get_text() for t in fig.axes[0].get_yticklabels()] == [
+        "Whisper large-v3",
+        "Saaras v4 transcribe",
+    ]
+
+
+def test_real_vs_synthetic_refuses_different_real_speech() -> None:
+    gaps = _gaps()
+    gaps["bulbul-clean"] = gaps["bulbul-clean"].assign(wer_real=0.9)
+    with mpl.rc_context(RC), pytest.raises(ValueError, match="real-speech WER differs"):
+        real_vs_synthetic(gaps, THEMES[0])
 
 
 def test_draw_figures_writes_light_and_dark_svgs(tmp_path: Path) -> None:
@@ -98,4 +146,5 @@ def test_real_vs_synthetic_ignores_unknown_engines_and_empty_tables(theme: Theme
     gaps = _gaps() | {"other-clean": _gaps()["bulbul-clean"], "bulbul-noisy": pd.DataFrame()}
     with mpl.rc_context(RC):
         fig = real_vs_synthetic(gaps, theme)
+    assert fig is not None
     assert len(fig.axes) == 2  # clean and telephony
