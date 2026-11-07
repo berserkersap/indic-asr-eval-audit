@@ -49,7 +49,6 @@ def _rq1(args: argparse.Namespace) -> None:
     from indic_asr_audit.asr import load_systems, read_transcripts
     from indic_asr_audit.data import read_manifest
     from indic_asr_audit.languages import get_language
-    from indic_asr_audit.plots import plot_rq1
 
     utterances = read_manifest(_manifest_path(args.dataset))
     systems = load_systems(args.systems)
@@ -71,7 +70,6 @@ def _rq1(args: argparse.Namespace) -> None:
         {name: set(systems[name].exclude_splits) for name in transcripts},
     )
     write_tables(tables, out_dir)
-    plot_rq1(tables["scores"], out_dir / "wer_by_level.png")
     print(f"RQ1 for {len(transcripts)} systems written to {out_dir}")
 
 
@@ -136,7 +134,6 @@ def _rq2(args: argparse.Namespace) -> None:
     from indic_asr_audit.asr import load_systems
     from indic_asr_audit.data import Utterance, read_manifest
     from indic_asr_audit.languages import get_language
-    from indic_asr_audit.plots import plot_rq2
     from indic_asr_audit.rq2 import (
         Hypotheses,
         real_ceiling,
@@ -178,8 +175,6 @@ def _rq2(args: argparse.Namespace) -> None:
         tables["selection"] = selection_table(real_utts, kept, shared_hyps, pack, excluded)
         out_dir = RESULTS / "rq2" / name
         write_tables(tables, out_dir)
-        if not tables["gap"].empty:
-            plot_rq2(tables["gap"], out_dir / "real_vs_synthetic.png", title=name)
         print(f"RQ2 for {name} written to {out_dir}")
 
 
@@ -220,11 +215,13 @@ def _token_rate(args: argparse.Namespace) -> None:
 
 
 def _report(args: argparse.Namespace) -> None:
-    from indic_asr_audit.report import fill_readme, render_rq1, render_rq2
+    from indic_asr_audit.plots import draw_figures
+    from indic_asr_audit.report import fill_readme, render_rq1, render_rq2, synthetic_gaps
 
-    blocks = render_rq1(RESULTS / "rq1" / args.dataset) | render_rq2(RESULTS, args.dataset)
-    fill_readme(args.readme, blocks)
-    print(f"Updated {args.readme}")
+    rq1_dir = RESULTS / "rq1" / args.dataset
+    figures = draw_figures(rq1_dir, synthetic_gaps(RESULTS, args.dataset), RESULTS / "figures")
+    fill_readme(args.readme, render_rq1(rq1_dir) | render_rq2(RESULTS, args.dataset))
+    print(f"Updated {args.readme} and {len(figures)} figures in {RESULTS / 'figures'}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -278,7 +275,9 @@ def build_parser() -> argparse.ArgumentParser:
     rate.add_argument("--systems", type=Path, default=DEFAULT_SYSTEMS)
     rate.set_defaults(run=_token_rate)
 
-    report = commands.add_parser("report", help="fill the README tables from the results")
+    report = commands.add_parser(
+        "report", help="fill the README tables and draw the figures from the results"
+    )
     report.add_argument("--dataset", default="fleurs_hi_in")
     report.add_argument("--readme", type=Path, default=Path("README.md"))
     report.set_defaults(run=_report)

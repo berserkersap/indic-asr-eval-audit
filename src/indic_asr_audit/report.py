@@ -225,6 +225,12 @@ def _synthetic_sets(rq2_dir: Path, dataset: str) -> dict[str, Path]:
     }
 
 
+def synthetic_gaps(results: Path, dataset: str) -> dict[str, pd.DataFrame]:
+    """Each synthetic test set's gap table, keyed by test set ("mms-tts-clean")."""
+    sets = _synthetic_sets(results / "rq2", dataset)
+    return {name: _read(path / "gap.csv") for name, path in sets.items()}
+
+
 def _engine_of_set(name: str) -> str:
     """The TTS engine of a test set: "mms-tts" for "mms-tts-clean".
 
@@ -375,7 +381,7 @@ def render_rq2(
             sizes.append(rejection_line(pd.read_csv(summary, keep_default_na=False), engine))
     return {
         "rq2-size": (NEWLINE * 2).join(sizes),
-        "rq2-gap": gap_table({n: _read(p / "gap.csv") for n, p in sets.items()}, subset),
+        "rq2-gap": gap_table(synthetic_gaps(results, dataset), subset),
         "rq2-agreement": agreement_table(rq2_dir, sets, agreement_subsets),
         "rq2-rho": rho_table(rq2_dir, sets, agreement_subsets),
         "rq2-selection": selection_markdown(
