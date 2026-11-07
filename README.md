@@ -72,16 +72,17 @@ cluster-bootstrap intervals:
   significant), and 1 to 3 points across all subsets (significant on the
   controls and, for `verbatim`, on all utterances with numbers).
 - **The TTS engine sets whether a synthetic test set looks harder or easier
-  than real speech, and it can reorder systems.** On the 49 held-out
+  than real speech, and it can blur a real difference between systems.** On
+  the 49 held-out
   sentences with numbers, MMS-TTS audio raises WER by 7 to 12 points for the
   three strongest systems (MMS-1B, Whisper large-v3 and large-v3-turbo), clean
   or telephony, while Sarvam's Bulbul lowers it by 7 to 9 points for the two
   Whisper large models and by only about 3.5 for MMS-1B (not significant).
-  With Bulbul, Whisper large-v3 overtakes MMS-1B, a flip that is significant
-  on the 49 sentences but not on the 22 that also have a second real
-  recording (Kendall tau 0.80 against real speech, where a second real
-  recording gives 1.00); with MMS-TTS no pair swaps order. This is one
-  flipped pair, with one engine. On numbers,
+  On real speech MMS-1B leads Whisper large-v3 by 2.9 points [0.1, 5.6],
+  just clear of zero; on Bulbul audio large-v3 is 1 to 2 points ahead, with
+  intervals that include zero. That is a near-tie that changes sign, not an
+  established reordering, but it lowers Kendall tau to 0.80, where a second
+  real recording gives 1.00; with MMS-TTS no pair swaps order. On numbers,
   MMS-TTS raises the numeric value error by 13 to 24 points for the three
   strongest systems, while Bulbul changes it by -4 to +3 points for the
   Whisper large models but raises it by 10 to 11 for MMS-1B (79 numbers, no
@@ -260,7 +261,7 @@ recording of each sentence and compares with a second recording of the same
 sentence (FLEURS has no speaker ids).
 "Same sentences" restricts a synthetic set to those sentences; "all" uses every
 sentence it has. A flip counts as significant only if the two systems differ on
-real speech.
+real speech; whether they differ on the synthetic audio is not tested.
 
 <!-- rq2-agreement -->
 | subset | compared with real speech | sentences | systems | Kendall tau | pairs flipped | significant flips |
@@ -342,8 +343,8 @@ Reading these tables:
   repetition loops (see Limitations).
 - Bulbul speech is easier than real speech for every system on average: by
   7 to 9 points for the Whisper large models, 16 to 28 for Whisper small and
-  medium, and about 3.5 for MMS-1B (the intervals for MMS-1B, and for Whisper
-  small on telephony, include zero). On 22 of the 26 sentences that have a
+  medium, and about 3.5 for MMS-1B (the intervals for MMS-1B reach zero, and
+  for Whisper small on telephony include it). On 22 of the 26 sentences that have a
   second real recording it lowers the WER of the three strongest systems by
   5.9 to 11.1 points (intervals exclude zero), against -2.3 to -3.7 for that
   recording on all 26 (intervals include zero). Why Whisper small and medium
@@ -358,8 +359,11 @@ Reading these tables:
 - MMS-TTS: the one Kendall tau below 1 (0.95, clean, all sentences) is a
   tie, as MMS-1B and Whisper large-v3 both score 34.5%; it is not a flipped
   pair. Bulbul: tau is 0.80 in every held-out row because Whisper large-v3
-  and MMS-1B swap places. The swap counts as significant on all 49 sentences,
-  where the two differ on real speech, but not on the 22 same sentences.
+  and MMS-1B swap places. On all 49 sentences the swap counts as
+  significant, because the two differ on real speech (MMS-1B ahead by 2.9
+  [0.1, 5.6] points), but on Bulbul audio their difference is not
+  significant (large-v3 ahead by 2.0 [-1.1, 4.9] clean, 1.0 [-1.8, 4.0]
+  telephony); on the 22 same sentences the swap is not significant.
 - Per-utterance difficulty: the median ρ for synthetic audio is similar to
   that for a second recording, 0.31 to 0.39 against 0.37 on held-out sentences
   and
@@ -497,9 +501,14 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
   prosody) and Bulbul with eight voices. They show what these engines do,
   and that the two disagree, not what synthetic speech does in general. Five
   systems give only ten pairs to flip and a wide interval on Kendall tau, so
-  ranking agreement here is a weak test. Bulbul is a hosted model; the
-  committed transcripts, not the API, are the reproducible artifact (the
-  audio itself is not committed).
+  ranking agreement here is a weak test. Some differences are ruled out:
+  both engines speak the same verbalised text, keep the same 49 held-out
+  sentences, and speak at a similar pace (median 0.84 and 0.87 of the real
+  recording's speech time). Bulbul is a hosted model whose training data is
+  not public; FLEURS may be in it. The audio is not committed; the
+  transcripts, each engine's settings and its per-sentence log (voice,
+  attempts, reason for leaving out) are, in
+  [`results/synth/`](results/synth/).
 
 ## Research log
 
@@ -509,7 +518,7 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
 | 2026-11-07 | RQ2 with MMS-TTS, clean and telephony, five open systems: the order of the systems holds, but WER rises by 7 to 12 points for the three strongest systems and their numeric value error by 13 to 24 points. |
 | 2026-11-07 | Saaras v4 (queried on 6 November UTC) in `transcribe` and `verbatim` modes on real speech: number normalisation removes at least three quarters of the WER gap between the two modes. |
 | 2026-11-07 | Review fixes: the WER share of numbers is counted on the alignment (4.0 points for MMS, not at most 3.0); lenient matching forgives one number per word. |
-| 2026-11-07 | RQ2 with Bulbul as a second TTS engine: its audio is easier than real speech, least so for MMS-1B, and Whisper large-v3 overtakes MMS-1B. The TTS engine, not only the ASR system, sets the synthetic result. |
+| 2026-11-07 | RQ2 with Bulbul as a second TTS engine: its audio is easier than real speech, least so for MMS-1B, and the narrow real-speech lead of MMS-1B over Whisper large-v3 becomes a near-tie the other way. The TTS engine, not only the ASR system, sets the synthetic result. |
 
 Next:
 
