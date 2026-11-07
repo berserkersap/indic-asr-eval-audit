@@ -96,7 +96,16 @@ warn_unused_ignores = true
 files = ["src", "tests"]
 
 [[tool.mypy.overrides]]
-module = ["jiwer.*", "scipy.*", "soundfile.*", "transformers.*", "sarvamai.*", "huggingface_hub.*"]
+module = [
+    "huggingface_hub.*",
+    "jiwer.*",
+    "sarvamai.*",
+    "scipy.*",
+    "soundfile.*",
+    "torch",
+    "torch.*",
+    "transformers.*",
+]
 ignore_missing_imports = true
 
 # Third-party ML stacks are large and loosely typed; do not type-check their internals.

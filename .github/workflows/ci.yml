@@ -26,8 +26,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: pyproject.toml
-      - name: Install core and dev dependencies
-        run: pip install -e ".[dev]"
+      # The synth extra is light (no torch) and the Sarvam client and audio tests need it.
+      - name: Install core, synth and dev dependencies
+        run: pip install -e ".[dev,synth]"
       - name: Lint
         run: |
           ruff check .
