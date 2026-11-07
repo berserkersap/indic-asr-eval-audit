@@ -1,0 +1,32 @@
+{
+  "engine": {
+    "engine": "bulbul",
+    "model": "bulbul:v3",
+    "language": "hi-IN",
+    "voices": [
+      "priya",
+      "ritu",
+      "neha",
+      "kavya",
+      "rahul",
+      "rohan",
+      "amit",
+      "aditya"
+    ],
+    "versions": {
+      "sarvamai": "0.1.43"
+    }
+  },
+  "limits": {
+    "min_duration_ratio": 0.5,
+    "max_duration_ratio": 2.0,
+    "min_rms": 0.001,
+    "max_clipped_fraction": 0.001
+  },
+  "conditions": [
+    "clean",
+    "telephony"
+  ],
+  "verbalizer": 3,
+  "created": "2026-11-06T19:45:10+00:00"
+}
