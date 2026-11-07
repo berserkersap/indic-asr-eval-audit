@@ -56,6 +56,14 @@ def test_whisper_level_matches_transformers() -> None:
         ("1,2,3", "1 2 3"),
         ("में2 लोग", "में 2 लोग"),
         ("३.५", "3.5"),
+        # A dotted clock time beside a time word; decimals elsewhere stay decimals.
+        ("6.30 बजे", "6 30 बजे"),
+        ("सुबह 6.30 और 7.30", "सुबह 6 30 और 7.30"),
+        ("12.00 GMT पर", "12 gmt पर"),
+        ("6.34 इंच", "6.34 इंच"),
+        ("3.50 मीटर", "3.50 मीटर"),
+        ("बरात 6.30", "बरात 6.30"),
+        ("25.30 बजे", "25.30 बजे"),  # not a time
     ],
 )
 def test_basic_level(text: str, expected: str) -> None:

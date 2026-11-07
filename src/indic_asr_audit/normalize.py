@@ -13,13 +13,15 @@ Levels:
 
 The basic level also rewrites written forms that are read differently from
 how they are written: "₹500" is read "500 rupaye", "10:00" is read without
-the zero minutes, and "15.08.1947" is three numbers, not a decimal.
+the zero minutes, "15.08.1947" is three numbers, not a decimal, and "6.30" next
+to a time word ("6.30 baje") is the clock time 6:30, not the decimal 6.3.
 """
 
 import re
 import unicodedata
 from enum import StrEnum
 from fractions import Fraction
+from functools import cache
 
 from indic_asr_audit.languages.base import LanguagePack
 from indic_asr_audit.numbers import replace_numbers, spell_number, split_ordinals
@@ -68,6 +70,31 @@ def whisper_basic(text: str) -> str:
     return _SPACES.sub(" ", text.lower()).strip()
 
 
+@cache
+def _dotted_time_patterns(before: tuple[str, ...], after: tuple[str, ...]) -> list[re.Pattern[str]]:
+    """Patterns for "h.mm" beside a time word; group 1 is any text kept before it."""
+    clock = r"(?<![\d.])([01]?\d|2[0-3])\.([0-5]\d)(?![\d.])"
+    patterns = []
+    if after:
+        words = "|".join(map(re.escape, after))
+        patterns.append(re.compile(rf"()(?:{clock})(?=\s*(?:{words}))", re.IGNORECASE))
+    if before:
+        words = "|".join(map(re.escape, before))
+        # A whole word only: "barat 6.30" (a wedding procession) is not "raat 6.30".
+        patterns.append(re.compile(rf"((?<!{_LETTER})(?:{words})\s*)(?:{clock})", re.IGNORECASE))
+    return patterns
+
+
+def _dotted_times(text: str, pack: LanguagePack) -> str:
+    """Write a dotted clock time with a colon: "6.30 baje" is 6:30, not the decimal 6.3.
+
+    Only a time word beside it tells a time from a decimal ("6.34 inch").
+    """
+    for pattern in _dotted_time_patterns(pack.time_words_before, pack.time_words_after):
+        text = pattern.sub(r"\1\2:\3", text)
+    return text
+
+
 def _written_forms(text: str, pack: LanguagePack) -> str:
     """Rewrite written forms the way they are read; shared by scoring and TTS."""
     text = _ZERO_WIDTH.sub("", unicodedata.normalize("NFC", text))
@@ -78,7 +105,7 @@ def _written_forms(text: str, pack: LanguagePack) -> str:
         text = re.sub(rf"{re.escape(symbol)}\s*(\d+(?:\.\d+)?)", rf"\1 {word} ", text)
     for symbol, word in {**pack.prefix_symbols, **pack.symbols}.items():
         text = text.replace(symbol, f" {word} ")
-    text = _ZERO_MINUTES.sub("", text)
+    text = _ZERO_MINUTES.sub("", _dotted_times(text, pack))
     return _DOTTED_DATE.sub(lambda m: " ".join(str(int(part)) for part in m.groups()), text)
 
 

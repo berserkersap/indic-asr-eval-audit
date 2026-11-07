@@ -50,6 +50,10 @@ class LanguagePack:
         spoken_point: Word read for the decimal point.
         years_as_hundreds: Read 1100-1999 as hundreds ("nineteen hundred
             ninety"), as Hindi does.
+        time_words_before: Words that mark the number after them as a clock
+            time, e.g. Hindi "subah" (morning), so "subah 6.30" is 6:30.
+        time_words_after: Words that mark the number before them as a clock
+            time, e.g. Hindi "baje" (o'clock), so "6.30 baje" is 6:30.
     """
 
     code: str
@@ -68,6 +72,8 @@ class LanguagePack:
     spoken_scales: tuple[tuple[int, str], ...] = ()
     spoken_point: str = ""
     years_as_hundreds: bool = False
+    time_words_before: tuple[str, ...] = ()
+    time_words_after: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.native_digits and len(self.native_digits) != 10:
