@@ -189,3 +189,13 @@ def test_bulbul_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(tts.client.text_to_speech, "convert", convert)
     assert tts._request("नमस्ते", "priya") == "audio"
     assert len(calls) == 2
+
+
+def test_synthesis_settings_locate_the_run_folder(tmp_path: Path, corpus: list[Utterance]) -> None:
+    from indic_asr_audit.synth import output_dir, synthesis_settings
+
+    engine = FakeEngine(["a"])
+    run(engine, corpus, tmp_path)
+    run_dir = output_dir(tmp_path, "test", synthesis_settings(engine))
+    assert (run_dir / "settings.json").exists()
+    assert (run_dir / "synthesis_log.jsonl").exists()

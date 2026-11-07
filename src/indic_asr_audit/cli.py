@@ -76,11 +76,18 @@ def _rq1(args: argparse.Namespace) -> None:
 
 
 def _synthesize(args: argparse.Namespace) -> None:
+    import shutil
+
     import pandas as pd
 
     from indic_asr_audit.data import read_manifest, write_manifest
     from indic_asr_audit.languages import get_language
-    from indic_asr_audit.synth import load_engine, synthesize_manifest
+    from indic_asr_audit.synth import (
+        load_engine,
+        output_dir,
+        synthesis_settings,
+        synthesize_manifest,
+    )
 
     utterances = read_manifest(_manifest_path(args.dataset))
     suffix = "-numeric" if args.numeric_only else ""
@@ -103,6 +110,11 @@ def _synthesize(args: argparse.Namespace) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     summary.reset_index().to_csv(out, index=False, lineterminator="\n")
     print(summary.to_string())
+    # The audio is not committed; its settings and per-sentence log are.
+    run_dir = output_dir(args.data_dir, args.dataset, synthesis_settings(engine))
+    (out.parent / base).mkdir(exist_ok=True)
+    for name in ("settings.json", "synthesis_log.jsonl"):
+        shutil.copyfile(run_dir / name, out.parent / base / name)
 
 
 def _complete(dataset: str, names: list[str], ids: list[str]) -> dict[str, dict[str, str]]:

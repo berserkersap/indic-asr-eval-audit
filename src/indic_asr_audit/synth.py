@@ -348,6 +348,20 @@ def _read_log(path: Path) -> dict[str, dict[str, Any]]:
     return {r["id"]: r for r in (json.loads(line) for line in lines if line.strip())}
 
 
+def synthesis_settings(
+    engine: TTSEngine,
+    conditions: Sequence[Condition] = CONDITIONS,
+    limits: CheckLimits | None = None,
+) -> dict[str, Any]:
+    """Everything that determines the clips; ``output_dir`` hashes it."""
+    return {
+        "engine": engine.describe(),
+        "limits": asdict(limits or CheckLimits()),
+        "conditions": list(conditions),
+        "verbalizer": VERBALIZER_VERSION,
+    }
+
+
 def synthesize_manifest(
     engine: TTSEngine,
     pack: LanguagePack,
@@ -365,12 +379,7 @@ def synthesize_manifest(
     log, which is appended to as the run goes.
     """
     limits = limits or CheckLimits()
-    settings: dict[str, Any] = {
-        "engine": engine.describe(),
-        "limits": asdict(limits),
-        "conditions": list(conditions),
-        "verbalizer": VERBALIZER_VERSION,
-    }
+    settings = synthesis_settings(engine, conditions, limits)
     out_dir = output_dir(data_dir, dataset, settings)
     out_dir.mkdir(parents=True, exist_ok=True)
     settings_path = out_dir / "settings.json"
