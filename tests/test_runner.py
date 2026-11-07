@@ -11,6 +11,7 @@ import soundfile as sf
 from indic_asr_audit.asr import (
     Audio,
     SarvamTranscriber,
+    call_sarvam,
     read_transcripts,
     run_transcription,
     token_limit,
@@ -156,3 +157,19 @@ def test_sarvam_retries_rate_limits(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_sarvam_does_not_retry_bad_requests() -> None:
     with pytest.raises(_HttpError):
         _sarvam([_HttpError(400)]).transcribe([AUDIO])
+
+
+def test_call_sarvam_gives_up_after_the_last_attempt(monkeypatch: pytest.MonkeyPatch) -> None:
+    waits: list[float] = []
+    monkeypatch.setattr("time.sleep", waits.append)
+    calls: list[int] = []
+
+    def request() -> None:
+        calls.append(1)
+        raise _HttpError(503)
+
+    with pytest.raises(_HttpError):
+        call_sarvam(request, max_retries=3)
+    assert len(calls) == 3
+    assert len(waits) == 2
+    assert 1 <= waits[0] < 2 <= waits[1] < 3  # exponential backoff with jitter

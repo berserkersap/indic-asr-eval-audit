@@ -219,15 +219,16 @@ def call_sarvam[T](request: Callable[[], T], max_retries: int) -> T:
     Transient means a dropped connection, a timeout, a rate limit or a server
     error; anything else, such as a bad request, is raised at once.
     """
-    for attempt in range(max(1, max_retries)):
+    import httpx  # installed with sarvamai
+
+    attempts = max(1, max_retries)
+    for attempt in range(attempts):
         try:
             return request()
         except Exception as error:  # the SDK raises one class per HTTP status
-            import httpx  # installed with sarvamai
-
             status = getattr(error, "status_code", None)
             transient = isinstance(error, httpx.TransportError) or status in SARVAM_RETRY_STATUS
-            if not transient or attempt >= max_retries - 1:
+            if not transient or attempt == attempts - 1:
                 raise
             time.sleep(2**attempt + random.random())
     raise RuntimeError("unreachable: the last attempt returns or raises")
