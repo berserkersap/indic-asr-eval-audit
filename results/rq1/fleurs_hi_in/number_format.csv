@@ -1,0 +1,9 @@
+system,as_digits,as_words,digit_share
+reference,135,26,0.8385
+whisper-small,22,37,0.3729
+whisper-medium,92,23,0.8
+whisper-large-v3,121,22,0.8462
+whisper-large-v3-turbo,112,24,0.8235
+mms-1b-all,126,28,0.8182
+saaras-v4-transcribe,81,75,0.5192
+saaras-v4-verbatim,26,125,0.1722

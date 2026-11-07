@@ -1,0 +1,15 @@
+system,splits,wer,low,high,n
+whisper-small,train,0.8534,0.7772,0.9387,438
+whisper-small,dev and test,0.7503,0.655,0.8646,85
+whisper-medium,train,0.4359,0.419,0.4553,438
+whisper-medium,dev and test,0.4891,0.3953,0.6244,85
+whisper-large-v3,train,0.281,0.2688,0.2941,438
+whisper-large-v3,dev and test,0.2649,0.2342,0.297,85
+whisper-large-v3-turbo,train,0.3295,0.31,0.3536,438
+whisper-large-v3-turbo,dev and test,0.3122,0.2629,0.3854,85
+mms-1b-all,train,0.1527,0.1427,0.1633,438
+mms-1b-all,dev and test,0.2305,0.2041,0.2592,85
+saaras-v4-transcribe,train,0.0679,0.0603,0.0762,438
+saaras-v4-transcribe,dev and test,0.0665,0.0522,0.0828,85
+saaras-v4-verbatim,train,0.0833,0.0744,0.0931,438
+saaras-v4-verbatim,dev and test,0.0804,0.0626,0.1011,85
