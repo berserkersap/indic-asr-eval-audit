@@ -23,8 +23,6 @@ import hashlib
 import io
 import json
 import os
-import random
-import time
 import zlib
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
@@ -36,7 +34,7 @@ from typing import Any, Literal, Protocol, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from indic_asr_audit.asr import SAMPLE_RATE, Audio, load_audio, package_versions
+from indic_asr_audit.asr import SAMPLE_RATE, Audio, call_sarvam, load_audio, package_versions
 from indic_asr_audit.data import Utterance
 from indic_asr_audit.languages.base import LanguagePack
 from indic_asr_audit.normalize import has_latin, verbalize
@@ -126,8 +124,6 @@ class BulbulTTS:
     are the reproducible artifact.
     """
 
-    RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
-
     def __init__(
         self, model: str, language: str, voices: Sequence[str], max_retries: int = 5
     ) -> None:
@@ -142,24 +138,16 @@ class BulbulTTS:
         self.max_retries = max(1, max_retries)
 
     def _request(self, text: str, voice: str) -> Any:
-        for attempt in range(self.max_retries):
-            try:
-                return self.client.text_to_speech.convert(
-                    text=text,
-                    language_code=self.language,
-                    speaker=voice,
-                    model=self.model,
-                    speech_sample_rate=SAMPLE_RATE,
-                )
-            except Exception as error:  # the SDK raises one class per HTTP status
-                import httpx  # installed with sarvamai
-
-                status = getattr(error, "status_code", None)
-                transient = isinstance(error, httpx.TransportError) or status in self.RETRY_STATUS
-                if not transient or attempt == self.max_retries - 1:
-                    raise
-                time.sleep(2**attempt + random.random())
-        raise RuntimeError("unreachable: the last attempt returns or raises")
+        return call_sarvam(
+            lambda: self.client.text_to_speech.convert(
+                text=text,
+                language_code=self.language,
+                speaker=voice,
+                model=self.model,
+                speech_sample_rate=SAMPLE_RATE,
+            ),
+            self.max_retries,
+        )
 
     def synthesize(self, text: str, voice: str) -> Audio:
         """Return 16 kHz mono audio for text spoken by the given speaker."""

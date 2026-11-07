@@ -210,14 +210,35 @@ class CTCTranscriber:
         }
 
 
+SARVAM_RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+
+
+def call_sarvam[T](request: Callable[[], T], max_retries: int) -> T:
+    """Make a Sarvam API request, retrying transient failures with backoff.
+
+    Transient means a dropped connection, a timeout, a rate limit or a server
+    error; anything else, such as a bad request, is raised at once.
+    """
+    for attempt in range(max(1, max_retries)):
+        try:
+            return request()
+        except Exception as error:  # the SDK raises one class per HTTP status
+            import httpx  # installed with sarvamai
+
+            status = getattr(error, "status_code", None)
+            transient = isinstance(error, httpx.TransportError) or status in SARVAM_RETRY_STATUS
+            if not transient or attempt >= max_retries - 1:
+                raise
+            time.sleep(2**attempt + random.random())
+    raise RuntimeError("unreachable: the last attempt returns or raises")
+
+
 class SarvamTranscriber:
     """Sarvam's hosted Saaras model. Needs SARVAM_API_KEY.
 
     A hosted model can change without notice, so its cached transcripts, not
     the API, are the reproducible artifact.
     """
-
-    RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 
     def __init__(self, model: str, mode: str, language: str, max_retries: int = 5) -> None:
         from sarvamai import SarvamAI
@@ -233,31 +254,21 @@ class SarvamTranscriber:
         """Return one transcript per input, one request each."""
         return [self._one(audio) for audio in batch]
 
-    def _transient(self, error: Exception) -> bool:
-        import httpx
-
-        status = getattr(error, "status_code", None)
-        return isinstance(error, httpx.TransportError) or status in self.RETRY_STATUS
-
     def _one(self, audio: Audio) -> str:
         import soundfile as sf
 
         buffer = io.BytesIO()
         sf.write(buffer, audio, SAMPLE_RATE, format="WAV", subtype="PCM_16")
-        for attempt in range(self.max_retries):
-            try:
-                response = self.client.speech_to_text.transcribe(
-                    file=("audio.wav", buffer.getvalue(), "audio/wav"),
-                    model=self.model,
-                    mode=self.mode,
-                    language_code=self.language,
-                )
-                return str(response.transcript or "").strip()
-            except Exception as error:  # the SDK raises one class per HTTP status
-                if not self._transient(error) or attempt == self.max_retries - 1:
-                    raise
-                time.sleep(2**attempt + random.random())
-        raise RuntimeError("unreachable: the last attempt returns or raises")
+        response = call_sarvam(
+            lambda: self.client.speech_to_text.transcribe(
+                file=("audio.wav", buffer.getvalue(), "audio/wav"),
+                model=self.model,
+                mode=self.mode,
+                language_code=self.language,
+            ),
+            self.max_retries,
+        )
+        return str(response.transcript or "").strip()
 
     def describe(self) -> dict[str, Any]:
         """Return the settings that determine the output."""
