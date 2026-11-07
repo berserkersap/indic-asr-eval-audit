@@ -95,10 +95,7 @@ def numeric_counts(
     "pandrah" (see ``_spelled_run``); each such run forgives one number.
     Wrong digits are never forgiven.
     """
-    ref_spans = find_numbers(numeric_tokens(reference, pack), pack)
-    wanted = Counter(s.value for s in ref_spans if s.written_as_digits)
-    hyp_tokens = numeric_tokens(hypothesis, pack)
-    found = Counter(s.value for s in find_numbers(hyp_tokens, pack))
+    wanted, found = _wanted_and_found(reference, hypothesis, pack)
     missed = wanted - found
     if lenient:
         words = _words(hypothesis, pack)
@@ -109,6 +106,22 @@ def numeric_counts(
                 taken.update(run)
                 missed[value] -= 1
     return Counts(errors=sum(missed.values()), total=sum(wanted.values()))
+
+
+def _wanted_and_found(
+    reference: str, hypothesis: str, pack: LanguagePack
+) -> tuple[Counter[str], Counter[str]]:
+    """Values written as digits in the reference, and every value in the hypothesis."""
+    ref_spans = find_numbers(numeric_tokens(reference, pack), pack)
+    wanted = Counter(s.value for s in ref_spans if s.written_as_digits)
+    found = Counter(s.value for s in find_numbers(numeric_tokens(hypothesis, pack), pack))
+    return wanted, found
+
+
+def missed_values(reference: str, hypothesis: str, pack: LanguagePack) -> Counter[str]:
+    """The reference numbers that ``numeric_counts`` counts as missed (strict)."""
+    wanted, found = _wanted_and_found(reference, hypothesis, pack)
+    return wanted - found
 
 
 def _words(text: str, pack: LanguagePack) -> list[str]:

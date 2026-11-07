@@ -49,6 +49,7 @@ def _rq1(args: argparse.Namespace) -> None:
     from indic_asr_audit.asr import load_systems, read_transcripts
     from indic_asr_audit.data import read_manifest
     from indic_asr_audit.languages import get_language
+    from indic_asr_audit.number_audit import audit_tables
 
     utterances = read_manifest(_manifest_path(args.dataset))
     systems = load_systems(args.systems)
@@ -63,13 +64,10 @@ def _rq1(args: argparse.Namespace) -> None:
     if not transcripts:
         raise SystemExit("No system has complete transcripts; run `asr-audit transcribe` first.")
     out_dir = RESULTS / "rq1" / args.dataset
-    tables = rq1_tables(
-        utterances,
-        transcripts,
-        get_language(args.lang),
-        {name: set(systems[name].exclude_splits) for name in transcripts},
-    )
-    write_tables(tables, out_dir)
+    pack = get_language(args.lang)
+    excluded = {name: set(systems[name].exclude_splits) for name in transcripts}
+    tables = rq1_tables(utterances, transcripts, pack, excluded)
+    write_tables(tables | audit_tables(utterances, transcripts, pack), out_dir)
     print(f"RQ1 for {len(transcripts)} systems written to {out_dir}")
 
 
@@ -134,6 +132,7 @@ def _rq2(args: argparse.Namespace) -> None:
     from indic_asr_audit.asr import load_systems
     from indic_asr_audit.data import Utterance, read_manifest
     from indic_asr_audit.languages import get_language
+    from indic_asr_audit.number_audit import number_format_change
     from indic_asr_audit.rq2 import (
         Hypotheses,
         real_ceiling,
@@ -173,6 +172,8 @@ def _rq2(args: argparse.Namespace) -> None:
         }
         kept = {u.id for u in synthetic}
         tables["selection"] = selection_table(real_utts, kept, shared_hyps, pack, excluded)
+        held_out = [u for u in synthetic if u.has_number and u.split != "train"]
+        tables["number_format"] = number_format_change(held_out, real_all, synth, pack)
         out_dir = RESULTS / "rq2" / name
         write_tables(tables, out_dir)
         print(f"RQ2 for {name} written to {out_dir}")
