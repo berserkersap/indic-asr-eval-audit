@@ -1,6 +1,7 @@
 import json
 import random
 import unicodedata
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -64,6 +65,11 @@ def test_whisper_level_matches_transformers() -> None:
         ("3.50 मीटर", "3.50 मीटर"),
         ("बरात 6.30", "बरात 6.30"),
         ("25.30 बजे", "25.30 बजे"),  # not a time
+        ("23.59 बजे", "23 59 बजे"),
+        ("24.00 बजे", "24.00 बजे"),
+        ("सुबह6.30", "सुबह 6 30"),  # letters and digits are split
+        ("6.30 istanbul", "6.30 istanbul"),  # "ist" only as a whole word
+        ("6.30 बजेगा", "6.30 बजेगा"),
     ],
 )
 def test_basic_level(text: str, expected: str) -> None:
@@ -117,6 +123,7 @@ def test_ordinal_suffix_spellings_score_the_same() -> None:
         ("सुबह 10:00 बजे", "सुबह दस बजे"),
         ("फॉर्मेट 35mm है", "फॉर्मेट पैंतीस mm है"),
         ("15.08.1947 को", "पंद्रह आठ उन्नीस सौ सैंतालीस को"),
+        ("सुबह 6.30 बजे", "सुबह छह तीस बजे"),  # read like "6:30", not "6.3"
     ],
 )
 def test_verbalize(text: str, expected: str) -> None:
@@ -171,3 +178,8 @@ def test_verbalized_corpus_scores_like_its_references() -> None:
         spoken = verbalize(text, HINDI)
         if not has_latin(spoken):
             assert normalize(spoken, HINDI, Level.NUMBERS) == normalize(text, HINDI, Level.NUMBERS)
+
+
+def test_packs_without_time_words_leave_dotted_numbers_alone() -> None:
+    pack = replace(HINDI, time_words_before=(), time_words_after=())
+    assert normalize("6.30 बजे", pack, Level.BASIC) == "6.30 बजे"

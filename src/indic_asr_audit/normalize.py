@@ -71,18 +71,24 @@ def whisper_basic(text: str) -> str:
 
 
 @cache
-def _dotted_time_patterns(before: tuple[str, ...], after: tuple[str, ...]) -> list[re.Pattern[str]]:
-    """Patterns for "h.mm" beside a time word; group 1 is any text kept before it."""
+def _dotted_time_patterns(
+    before: tuple[str, ...], after: tuple[str, ...]
+) -> tuple[re.Pattern[str], ...]:
+    """Patterns for "h.mm" beside a time word; group 1 is any text kept before it.
+
+    Time words match whole words only, ignoring case: "barat 6.30" (a wedding
+    procession) is not "raat 6.30", and "6.30 istanbul" is not "6.30 IST".
+    """
     clock = r"(?<![\d.])([01]?\d|2[0-3])\.([0-5]\d)(?![\d.])"
     patterns = []
     if after:
         words = "|".join(map(re.escape, after))
-        patterns.append(re.compile(rf"()(?:{clock})(?=\s*(?:{words}))", re.IGNORECASE))
+        after_word = rf"(?=\s*(?:{words})(?!{_LETTER}))"
+        patterns.append(re.compile(rf"()(?:{clock}){after_word}", re.IGNORECASE))
     if before:
         words = "|".join(map(re.escape, before))
-        # A whole word only: "barat 6.30" (a wedding procession) is not "raat 6.30".
         patterns.append(re.compile(rf"((?<!{_LETTER})(?:{words})\s*)(?:{clock})", re.IGNORECASE))
-    return patterns
+    return tuple(patterns)
 
 
 def _dotted_times(text: str, pack: LanguagePack) -> str:

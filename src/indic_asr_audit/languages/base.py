@@ -53,7 +53,8 @@ class LanguagePack:
         time_words_before: Words that mark the number after them as a clock
             time, e.g. Hindi "subah" (morning), so "subah 6.30" is 6:30.
         time_words_after: Words that mark the number before them as a clock
-            time, e.g. Hindi "baje" (o'clock), so "6.30 baje" is 6:30.
+            time, e.g. Hindi "baje" (o'clock), so "6.30 baje" is 6:30. Time
+            words are matched as whole words, ignoring case.
     """
 
     code: str
