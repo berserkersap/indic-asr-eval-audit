@@ -27,8 +27,9 @@ cannot be ruled out).
 
 ## Key takeaway
 
-On FLEURS Hindi, with five open ASR systems, Sarvam's Saaras v4 and 95%
-cluster-bootstrap intervals:
+On FLEURS Hindi, with five open ASR systems, Sarvam's Saaras v4, two TTS
+engines for synthetic copies of the test set, and 95% cluster-bootstrap
+intervals:
 
 - **WER and the numeric value error disagree about MMS-1B.** On held-out
   utterances with numbers (85 utterances, 135 numbers), MMS-1B has the lowest
@@ -37,10 +38,9 @@ cluster-bootstrap intervals:
   models the two metrics rank MMS in opposite order, and both differences are
   significant. Forgiving close misspellings of number words (within 0.25
   normalised edit distance) changes this very little, so it is not an
-  artefact of strict spelling. Among
-  the four Whisper models the two metrics agree. The sample is small and the
-  intervals are wide, but where numbers matter, WER alone would pick the wrong
-  one of these two systems.
+  artefact of strict spelling. Among the four Whisper models the two metrics
+  agree. The sample is small and the intervals are wide, but where numbers
+  matter, WER alone would pick the wrong one of these two systems.
 - **WER can barely see numbers.** Numbers are 6% of the reference words, so
   word errors on numbers (any error that involves a word with a digit)
   account for only 4.0 of MMS's WER points, although it misses 67 numbers.
@@ -50,9 +50,9 @@ cluster-bootstrap intervals:
   is how numbers are written.** One model id (`saaras:v4`) on the same audio,
   with only its `mode` setting changed, scores 5.9 WER points worse in
   `verbatim` mode (numbers as spoken words) than in `transcribe` mode
-  (numbers as digits) after basic normalisation, but only
-  1.4 [0.4, 2.4] points worse once numbers are normalised (1.5 on all
-  utterances with numbers). Without numbers the two modes differ by at most
+  (numbers as digits) after basic normalisation, but only 1.4 [0.4, 2.4]
+  points worse once numbers are normalised (1.5 on all utterances with
+  numbers). Without numbers the two modes differ by at most
   0.3 points, with intervals that include zero. The remaining 1.4 points are
   partly a parser gap (see the note under the convention table), so three
   quarters is a lower bound. Whether the two modes share weights is not
@@ -77,9 +77,8 @@ cluster-bootstrap intervals:
   points for the three strongest systems (MMS-1B, Whisper large-v3 and
   large-v3-turbo), clean or telephony, while Sarvam's Bulbul lowers it by 7 to
   9 points for the two Whisper large models and by only about 3.5 for MMS-1B
-  (not significant).
-  On real speech MMS-1B leads Whisper large-v3 by 2.9 points [0.1, 5.6],
-  just clear of zero; on Bulbul audio large-v3 is 1 to 2 points ahead, with
+  (not significant). On real speech MMS-1B leads Whisper large-v3 by 2.9
+  points [0.1, 5.6], just clear of zero; on Bulbul audio large-v3 is 1 to 2 points ahead, with
   intervals that include zero. That is a near-tie that changes sign, not an
   established reordering, but it lowers Kendall tau to 0.80, where a second
   real recording gives 1.00; with MMS-TTS no pair swaps order. On numbers,
@@ -347,9 +346,9 @@ Reading these tables:
   for Whisper small on telephony include it). On 22 of the 26 sentences that
   have a second real recording it lowers the WER of the three strongest
   systems by 5.9 to 11.1 points (intervals exclude zero), against -2.3 to
-  -3.7 for that recording on all 26 (intervals include zero). Why Whisper small and medium
-  gain most, and MMS-1B least, is not established; no one has listened to
-  the clips.
+  -3.7 for that recording on all 26 (intervals include zero). Why Whisper
+  small and medium gain most, and MMS-1B least, is not established; no one
+  has listened to the clips.
 - With MMS-TTS the numeric value error rises more than WER does, which
   suggests that MMS-TTS speaks number words in a way the systems find
   especially hard; with Bulbul it barely moves for the Whisper large models.
@@ -366,9 +365,9 @@ Reading these tables:
   telephony); on the 22 same sentences the swap is not significant.
 - Per-utterance difficulty: the median ρ for synthetic audio is similar to
   that for a second recording: 0.31 to 0.39 against 0.37 on held-out
-  sentences, and 0.39 to 0.47 against 0.47 on all sentences with numbers. There is no
-  interval, single systems go as low as -0.11, and the sentence sets differ
-  slightly (22 against 26 held-out sentences).
+  sentences, and 0.39 to 0.47 against 0.47 on all sentences with numbers.
+  There is no interval, single systems go as low as -0.11, and the sentence
+  sets differ slightly (22 against 26 held-out sentences).
 - The sentences left out (39 for MMS-TTS, 41 for Bulbul; 37 for Latin-letter
   terms such as "H5N1") have higher real-speech WER for every system, by 2 to
   37 points (no interval).
@@ -504,8 +503,9 @@ November 2026 UTC; eight voices, each used for 49 to 64 sentences).
   engines are ruled out: both speak the same verbalised text, keep the same
   49 held-out sentences, and speak at a similar pace (median 0.84 and 0.87
   of the real recording's speech time). Both are faster than the real
-  speakers, so pace may still affect how either compares with real speech. Bulbul is a hosted model whose training data is
-  not public; FLEURS may be in it. The audio is not committed; the
+  speakers, so pace may still affect how either compares with real speech.
+  Bulbul is a hosted model whose training data is not public; FLEURS may be
+  in it. The audio is not committed; the
   transcripts, each engine's settings and its per-sentence log (voice,
   attempts, reason for leaving out) are, in
   [`results/synth/`](results/synth/).
