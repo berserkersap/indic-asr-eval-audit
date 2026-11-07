@@ -115,6 +115,11 @@ WER at the `numbers` level.
 | `whisper-small` | 68.3 [55.9, 83.4] | 76.4 [66.9, 87.8] | 75.6 [66.0, 87.1] | 75.0 [65.5, 86.5] | 78.5 [69.2, 86.3] | 77.0 [67.5, 84.8] |
 <!-- /rq1-wer -->
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="results/figures/rq1-wer-vs-numbers-dark.svg">
+  <img alt="WER against the share of numbers missed for each system: MMS-1B has the lowest WER of the open systems but misses about half of the numbers" src="results/figures/rq1-wer-vs-numbers-light.svg">
+</picture>
+
 Pairs of systems that WER (at the `numbers` level) and the numeric value error
 put in opposite order. A reversal is significant when the paired bootstrap
 intervals of both differences exclude zero; the two significant pairs share
@@ -209,7 +214,10 @@ trained on FLEURS train):
 | `whisper-small` | 69.6 [64.4, 75.4] | 84.8 [78.2, 92.4] | 84.2 [77.6, 91.8] | 83.6 [76.9, 91.2] | 72.0 [67.7, 76.3] | 68.7 [64.3, 73.2] |
 <!-- /rq1-wer-all-numeric -->
 
-![WER by normalisation level](results/rq1/fleurs_hi_in/wer_by_level.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="results/figures/rq1-wer-by-level-dark.svg">
+  <img alt="WER of each system at each normalisation level, for held-out and all utterances with numbers" src="results/figures/rq1-wer-by-level-light.svg">
+</picture>
 
 ### RQ2: synthetic versus real test sets (FLEURS Hindi, MMS-TTS and Bulbul)
 
@@ -253,6 +261,11 @@ so `n` counts both utterances and sentences.
 | `mms-tts-telephony` | `whisper-medium` | 49 | 54.8 | 50.8 | -4.0 [-26.1, +12.3] | 32.9 | 53.2 |
 | `mms-tts-telephony` | `whisper-small` | 49 | 78.7 | 80.3 | +1.5 [-21.9, +25.8] | 73.4 | 77.2 |
 <!-- /rq2-gap -->
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="results/figures/rq2-real-vs-synthetic-dark.svg">
+  <img alt="WER of each open system on real speech, MMS-TTS audio and Bulbul audio, clean and telephony" src="results/figures/rq2-real-vs-synthetic-light.svg">
+</picture>
 
 Does the synthetic set rank systems the way real speech does? Kendall tau
 between the WER rankings on real and on other audio, with a 95% bootstrap
@@ -583,13 +596,13 @@ asr-audit synthesize bulbul                    # Sarvam API, needs SARVAM_API_KE
 asr-audit transcribe whisper-small --dataset fleurs_hi_in-mms-tts-clean   # each system and set
 asr-audit rq2 fleurs_hi_in-mms-tts-clean fleurs_hi_in-mms-tts-telephony \
     fleurs_hi_in-bulbul-clean fleurs_hi_in-bulbul-telephony              # CPU, results/rq2/
-asr-audit report                               # refreshes the tables in this README
+asr-audit report                               # refreshes the tables and figures in this README
 pytest
 ```
 
 `transcribe` needs the audio from `prepare-fleurs`. Transcripts and result
 tables are committed, so `rq1`, `rq2` and `report` run on a CPU-only machine
-without any model or audio, and every table in this README is generated from
+without any model or audio, and every table and figure in this README is generated from
 [`results/`](results/) by `asr-audit report`. Each transcript file has a
 `.meta.json` with the model revision, decoding settings and package versions.
 Sarvam systems read `SARVAM_API_KEY` from the environment; the `.env` file

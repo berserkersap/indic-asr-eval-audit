@@ -7,6 +7,7 @@ named on the chart, so colour is never the only cue. Figures are built with
 ``Figure`` rather than pyplot, so no GUI backend is needed.
 """
 
+import io
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,6 +57,7 @@ THEMES = (
     ),
 )
 
+NEWLINE = chr(10)
 VENDOR_NAMES = {"openai": "OpenAI Whisper", "meta": "Meta MMS", "sarvam": "Sarvam"}
 DISPLAY_NAMES = {
     "mms-1b-all": "MMS-1B",
@@ -136,8 +138,12 @@ def _heading(fig: Figure, theme: Theme, title: str, subtitle: str) -> None:
 
 
 def _save(fig: Figure, path: Path) -> None:
+    """Write an SVG with LF line ends and no trailing spaces, the same on every OS."""
+    buffer = io.StringIO()
+    fig.savefig(buffer, format="svg", transparent=True, metadata={"Date": None, "Creator": None})
+    lines = (line.rstrip() for line in buffer.getvalue().splitlines())
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, transparent=True, metadata={"Date": None, "Creator": None})
+    path.write_text(NEWLINE.join(lines) + NEWLINE, encoding="utf-8", newline=NEWLINE)
 
 
 def _draw(draw: Callable[[Theme], Figure], out_dir: Path, name: str) -> list[Path]:
