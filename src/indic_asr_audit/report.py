@@ -186,6 +186,97 @@ def diagnostics_table(diagnostics: pd.DataFrame, subset: str) -> str:
     return _markdown(table)
 
 
+def miss_kinds_markdown(kinds: pd.DataFrame, formats: pd.DataFrame) -> str:
+    """How each system's missed numbers went wrong, and how often it writes digits."""
+    share = {str(r["system"]): float(r["digit_share"]) for r in formats.to_dict("records")}
+    rows = kinds.sort_values("missed")
+    table = pd.DataFrame(
+        {
+            "system": [f"`{s}`" for s in rows["system"]],
+            "missed": [f"{m} of {n}" for m, n in zip(rows["missed"], rows["numbers"], strict=True)],
+            "another number": rows["another number"],
+            "a word": rows["a word"],
+            "dropped": rows["dropped"],
+            "other": rows["other"],
+            "numbers written as digits": [f"{share[s] * 100:.0f}%" for s in rows["system"]],
+        }
+    )
+    reference = formats[formats["system"] == "reference"]
+    note = ""
+    if not reference.empty:
+        r = reference.iloc[0]
+        note = (
+            f"{NEWLINE * 2}The references write {r['digit_share'] * 100:.0f}% of their numbers "
+            f"as digits ({r['as_digits']} of {r['as_digits'] + r['as_words']} numbers)."
+        )
+    return _markdown(table) + note
+
+
+def missed_by_all_line(missed: pd.DataFrame, kinds: pd.DataFrame) -> str:
+    """The numbers every system misses, and each system's misses without them."""
+    if kinds.empty:
+        return "No results."
+    total = int(kinds["numbers"].iloc[0])
+    if missed.empty:
+        return f"No reference number is missed by every system ({total} numbers)."
+    groups = [
+        f"{' and '.join(str(v) for v in group['value'])} (sentence {sentence})"
+        for sentence, group in missed.groupby("sentence_id", sort=False)
+    ]
+    n = len(missed)
+    rest = ", ".join(
+        f"`{r['system']}` {int(r['missed']) - n}"
+        for r in kinds.sort_values("missed").to_dict("records")
+    )
+    return (
+        f"{n} of the {total} numbers are missed by all {len(kinds)} systems: "
+        f"{'; '.join(groups)}. Without them, the systems miss this many of the other "
+        f"{total - n}: {rest}."
+    )
+
+
+def split_wer_markdown(split: pd.DataFrame) -> str:
+    """WER at the numbers level on FLEURS train and on dev and test, per system."""
+    if split.empty:
+        return "No results."
+    cell = {(str(r["system"]), str(r["splits"])): r for r in split.to_dict("records")}
+    systems = list(dict.fromkeys(str(s) for s in split["system"]))
+    rows = []
+    for system in systems:
+        row = {"system": f"`{system}`"}
+        for group in ("train", "dev and test"):
+            r = cell.get((system, group))
+            label = f"WER on {group}"
+            row[label] = "-" if r is None else _pct({**r, "estimate": r["wer"]})
+            row[f"{label} n"] = "-" if r is None else str(r["n"])
+        rows.append(row)
+    table = pd.DataFrame(rows)
+    n_train, n_held = (table[c].iloc[0] for c in ("WER on train n", "WER on dev and test n"))
+    table = table.drop(columns=["WER on train n", "WER on dev and test n"])
+    table.columns = ["system", f"WER on train ({n_train})", f"WER on dev and test ({n_held})"]
+    return _markdown(table)
+
+
+def number_format_markdown(formats: Mapping[str, pd.DataFrame]) -> str:
+    """Share of numbers each system writes as digits, on real speech and each synthetic set."""
+    formats = {name: f for name, f in formats.items() if not f.empty}
+    if not formats:
+        return "No results."
+    systems = list(dict.fromkeys(s for f in formats.values() for s in f["system"]))
+    first = next(iter(formats.values())).set_index("system")
+    rows = []
+    for system in systems:
+        row = {
+            "system": f"`{system}`",
+            "real speech": f"{first.loc[system, 'digit_share_real'] * 100:.0f}%",
+        }
+        for name, f in formats.items():
+            share = f.set_index("system")["digit_share_synthetic"]
+            row[f"`{name}`"] = f"{share[system] * 100:.0f}%" if system in share else "-"
+        rows.append(row)
+    return _markdown(pd.DataFrame(rows))
+
+
 def render_rq1(results_dir: Path, subset: str = "held_out_numeric") -> dict[str, str]:
     """Markdown blocks for the README, keyed by marker name."""
     scores = pd.read_csv(results_dir / "scores.csv")
@@ -212,6 +303,16 @@ def render_rq1(results_dir: Path, subset: str = "held_out_numeric") -> dict[str,
     disagreement = results_dir / "wer_vs_numeric.csv"
     if disagreement.exists():
         blocks["rq1-disagreement"] = disagreement_table(pd.read_csv(disagreement))
+    kinds = _read(results_dir / "missed_kinds.csv")
+    if not kinds.empty:
+        formats = _read(results_dir / "number_format.csv")
+        blocks["rq1-miss-kinds"] = miss_kinds_markdown(kinds, formats)
+        blocks["rq1-missed-by-all"] = missed_by_all_line(
+            pd.read_csv(results_dir / "missed_by_all.csv", dtype={"value": str}), kinds
+        )
+    split = _read(results_dir / "split_wer.csv")
+    if not split.empty:
+        blocks["rq1-split-wer"] = split_wer_markdown(split)
     return blocks
 
 
@@ -384,6 +485,9 @@ def render_rq2(
         "rq2-gap": gap_table(synthetic_gaps(results, dataset), subset),
         "rq2-agreement": agreement_table(rq2_dir, sets, agreement_subsets),
         "rq2-rho": rho_table(rq2_dir, sets, agreement_subsets),
+        "rq2-number-format": number_format_markdown(
+            {n: _read(p / "number_format.csv") for n, p in sets.items()}
+        ),
         "rq2-selection": selection_markdown(
             {e: _read(p / "selection.csv") for e, p in first_set.items()}
         ),
